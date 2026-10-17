@@ -9,11 +9,9 @@ function WallpaperController.new(session: any, palettes: any, favorites: any, on
 		palettes = palettes,
 		favorites = favorites,
 		onChange = onChange,
+		selectedKind = "",
+		selectedPath = "",
 		nonce = 0,
-		pendingKind = "",
-		pendingPath = "",
-		pendingConnector = "",
-		pendingUntil = 0,
 	}, WallpaperController)
 end
 
@@ -23,43 +21,30 @@ function WallpaperController:nextNonce(): number
 end
 
 function WallpaperController:selection(): (string?, string?)
+	if self.selectedPath == "" then
+		return nil, nil
+	end
+	return self.selectedKind, self.selectedPath
+end
+
+function WallpaperController:isSelected(kind: string, path: string): boolean
+	return self.selectedKind == kind and self.selectedPath == path
+end
+
+function WallpaperController:syncSelection()
 	local connector = self.session:connector() or noctalia.focusedOutputName()
 	local assignments = noctalia.state.get("assignments") or {}
 	local video = assignments[connector] or assignments["*"]
-	local kind: string?
-	local path: string?
 	if type(video) == "string" and video ~= "" then
-		kind, path = "video", video
+		self.selectedKind = "video"
+		self.selectedPath = video
 	else
 		local output = connector or (noctalia.outputs()[1] and noctalia.outputs()[1].name)
 		local image = output and noctalia.wallpaperPath(output)
-		if type(image) == "string" and image ~= "" then
-			kind, path = "images", image
-		end
+		self.selectedKind = if image then "images" else ""
+		self.selectedPath = image or ""
 	end
-	if self.pendingPath ~= "" then
-		if kind == self.pendingKind and path == self.pendingPath then
-			self.pendingPath = ""
-		elseif
-			noctalia.nowMs() < self.pendingUntil
-			and (self.pendingConnector == "*" or self.pendingConnector == connector)
-		then
-			return self.pendingKind, self.pendingPath
-		else
-			self.pendingPath = ""
-		end
-	end
-	return kind, path
-end
-
-function WallpaperController:expectSelection(kind: string, path: string, connector: string?)
-	self.pendingKind = kind
-	self.pendingPath = path
-	self.pendingConnector = connector or "*"
-	self.pendingUntil = noctalia.nowMs() + 3000
-	noctalia.runAsync("sleep 3", function()
-		self.onChange()
-	end)
+	self.onChange()
 end
 
 function WallpaperController:hasVideo(): boolean
@@ -87,33 +72,14 @@ end
 
 function WallpaperController:applyImage(path: string)
 	local connector = self.session:connector()
-	self:expectSelection("images", path, connector)
-	local hadVideo = self:hasVideo()
-	local ticket = self:nextNonce()
+	noctalia.state.set("command", { action = "clear-all", nonce = self:nextNonce() })
 	if connector then
 		noctalia.setWallpaper(connector, path)
 	else
 		noctalia.setWallpaper(path)
 	end
-	if hadVideo then
-		noctalia.runAsync("sleep 1.2", function()
-			if self.nonce ~= ticket then
-				return
-			end
-			if connector then
-				noctalia.setWallpaperEnabled(connector, true)
-			else
-				for _, output in ipairs(noctalia.outputs()) do
-					noctalia.setWallpaperEnabled(output.name, true)
-				end
-			end
-			noctalia.runAsync("sleep 0.15", function()
-				if self.nonce == ticket then
-					noctalia.state.set("command", { action = "clear-for-image", nonce = ticket })
-				end
-			end)
-		end)
-	end
+	self.selectedKind = "images"
+	self.selectedPath = path
 	local favorite = self.favorites:get("images", path)
 	if favorite and favorite.source and favorite.scheme then
 		self.palettes:apply(favorite.source, favorite.scheme)
@@ -123,8 +89,9 @@ end
 
 function WallpaperController:applyVideo(path: string)
 	local connector = self.session:connector() or "*"
-	self:expectSelection("video", path, connector)
 	noctalia.state.set("command", { action = "set", connector = connector, path = path, nonce = self:nextNonce() })
+	self.selectedKind = "video"
+	self.selectedPath = path
 	local favorite = self.favorites:get("video", path)
 	if favorite and favorite.source and favorite.scheme then
 		self.palettes:apply(favorite.source, favorite.scheme)
@@ -143,6 +110,11 @@ function WallpaperController:toggleFavorite(): boolean?
 	return selected
 end
 
+function WallpaperController:isFavorite(): boolean
+	local kind, path = self:selection()
+	return kind ~= nil and path ~= nil and self.favorites:get(kind, path) ~= nil
+end
+
 function WallpaperController:pauseOrResume()
 	noctalia.state.set("command", {
 		action = if self:isPaused() then "thaw" else "freeze",
@@ -153,7 +125,6 @@ function WallpaperController:pauseOrResume()
 end
 
 function WallpaperController:stop()
-	self.pendingPath = ""
 	local connector = self.session:connector()
 	if connector then
 		noctalia.state.set("command", { action = "clear", connector = connector, nonce = self:nextNonce() })
