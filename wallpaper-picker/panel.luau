@@ -19,15 +19,8 @@ local TILE_INNER_GAP = 6
 local NAME_H = 22
 local VIEWPORT_ROWS = 2
 local PALETTE_CARD_WIDTH = 460
+local PALETTE_CARD_HEIGHT = 380
 local PALETTE_ROW_H = 34
--- The palette list scroll clips at its own edges and offsets its content by an
--- 8px top inset. Keeping the row gap equal to that inset and sizing the list to
--- 8 + rows*(rowH+gap) makes the first and last rows land on exact boundaries,
--- so no row is ever half-clipped at the top or bottom (like noctalia's popup).
-local PALETTE_ROW_GAP = 8
-local PALETTE_LIST_ROWS = 5
-local PALETTE_LIST_H = 8 + PALETTE_LIST_ROWS * (PALETTE_ROW_H + PALETTE_ROW_GAP)
-local PALETTE_CARD_HEIGHT = 392
 
 local function tileHeight(): number
 	return TILE_IMAGE_H + TILE_INNER_GAP + NAME_H
@@ -259,7 +252,7 @@ function PickerPanel:palettePopup(): UiNode
 			ui.label({ text = noctalia.tr("palette.empty"), color = "on_surface_variant" }),
 		})
 	else
-		list = ui.scroll({ height = PALETTE_LIST_H, gap = PALETTE_ROW_GAP, align = "stretch" }, rows)
+		list = ui.scroll({ flexGrow = 1, gap = 4, align = "stretch" }, rows)
 	end
 
 	local card = ui.column({
