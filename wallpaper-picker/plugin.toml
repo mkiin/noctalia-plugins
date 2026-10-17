@@ -8,7 +8,7 @@
 
 id = "mkiin/wallpaper-picker"
 name = "Wallpaper Picker"
-version = "0.1.1"
+version = "0.1.2"
 plugin_api = 31
 author = "mkiin"
 license = "MIT"
@@ -133,7 +133,7 @@ entry = "service.luau"
 id = "picker"
 entry = "panel.luau"
 width = 1000
-height = 760
+height = 600
 placement = "floating"
 position = "auto"
 

@@ -22,10 +22,24 @@ local PANEL_PADDING = 24
 local GRID_COLUMNS = 4
 local GRID_GAP = 12
 local TILE_RADIUS = 12
+-- Tiles flex to share the row, so no fixed tile width is needed. The image
+-- height is derived from the expected slot width (content width / 4).
 local CONTENT_WIDTH = PANEL_WIDTH - PANEL_PADDING * 2 - 16 -- slack for the scrollbar
-local TILE_WIDTH = math.floor((CONTENT_WIDTH - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS)
-local TILE_IMAGE_H = math.floor(TILE_WIDTH * 0.62)
-local CARD_WIDTH = math.floor((CONTENT_WIDTH - GRID_GAP) / 2)
+local TILE_IMAGE_H = math.floor(((CONTENT_WIDTH - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS) * 0.62)
+local TILE_INNER_GAP = 4
+local ACTION_H = 32 -- sm control tier
+local NAME_H = 14
+local VIEWPORT_ROWS = 2
+
+-- Height of the grid viewport: exactly VIEWPORT_ROWS rows, so anything beyond
+-- is clipped and only reachable by scrolling.
+local function viewportHeight()
+	local rowH = TILE_IMAGE_H + TILE_INNER_GAP + ACTION_H
+	if noctalia.getConfig("show_names") ~= false then
+		rowH = rowH + TILE_INNER_GAP + NAME_H
+	end
+	return rowH * VIEWPORT_ROWS + GRID_GAP
+end
 
 local CACHE_DIR = (noctalia.getenv("XDG_CACHE_HOME") or ((noctalia.getenv("HOME") or "") .. "/.cache"))
 	.. "/noctalia/wallpaper-picker"
@@ -573,16 +587,19 @@ local function grid(items, columns, nodeFor)
 	for i = 1, #items do
 		table.insert(row, nodeFor(items[i], i))
 		if #row == columns or i == #items then
-			table.insert(rows, ui.row({ gap = GRID_GAP }, row))
+			for _ = #row + 1, columns do
+				table.insert(row, ui.spacer({ flexGrow = 1 }))
+			end
+			table.insert(rows, ui.row({ gap = GRID_GAP, align = "stretch" }, row))
 			row = {}
 		end
 	end
-	return ui.column({ gap = GRID_GAP, align = "start" }, rows)
+	return ui.column({ gap = GRID_GAP, align = "stretch" }, rows)
 end
 
 local function imageTile(item)
 	if item.isDir then
-		return ui.column({ key = "dir:" .. item.path, width = TILE_WIDTH, gap = 4, align = "stretch" }, {
+		return ui.column({ key = "dir:" .. item.path, flexGrow = 1, gap = 4, align = "stretch" }, {
 			ui.box({
 				height = TILE_IMAGE_H,
 				fill = "surface_variant",
@@ -651,7 +668,7 @@ local function imageTile(item)
 			})
 		)
 	end
-	return ui.column({ key = "tile:" .. item.path, width = TILE_WIDTH, gap = 4, align = "stretch" }, children)
+	return ui.column({ key = "tile:" .. item.path, flexGrow = 1, gap = 4, align = "stretch" }, children)
 end
 
 local function videoTile(item)
@@ -720,14 +737,14 @@ local function videoTile(item)
 			})
 		)
 	end
-	return ui.column({ key = "vtile:" .. item.path, width = TILE_WIDTH, gap = 4, align = "stretch" }, children)
+	return ui.column({ key = "vtile:" .. item.path, flexGrow = 1, gap = 4, align = "stretch" }, children)
 end
 
 local function paletteCard(item)
 	local selected = (currentSource == item.source and currentScheme == item.name)
 	return ui.row({
 		key = "pal:" .. item.source .. ":" .. item.name,
-		width = CARD_WIDTH,
+		flexGrow = 1,
 		fill = item.surface or "surface_variant",
 		radius = 10,
 		padding = 10,
@@ -962,7 +979,7 @@ local function content()
 		if #children == 0 then
 			return emptyState("palette", noctalia.tr("palette.empty"))
 		end
-		return ui.scroll({ flexGrow = 1, gap = 12, align = "start" }, children)
+		return ui.scroll({ height = viewportHeight(), gap = 12, align = "stretch" }, children)
 	end
 
 	if tab == "video" then
@@ -970,7 +987,7 @@ local function content()
 		if #items == 0 then
 			return emptyState("movie-off", query ~= "" and noctalia.tr("no_match") or noctalia.tr("video.empty"))
 		end
-		return ui.scroll({ flexGrow = 1, align = "start" }, { grid(items, GRID_COLUMNS, videoTile) })
+		return ui.scroll({ height = viewportHeight(), align = "stretch" }, { grid(items, GRID_COLUMNS, videoTile) })
 	end
 
 	if scanning and #imageEntries == 0 then
@@ -981,7 +998,7 @@ local function content()
 	if #items == 0 then
 		return emptyState("photo", query ~= "" and noctalia.tr("no_match") or noctalia.tr("image.empty"))
 	end
-	return ui.scroll({ flexGrow = 1, align = "start" }, { grid(items, GRID_COLUMNS, imageTile) })
+	return ui.scroll({ height = viewportHeight(), align = "stretch" }, { grid(items, GRID_COLUMNS, imageTile) })
 end
 
 render = function()
