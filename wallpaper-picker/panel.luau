@@ -327,7 +327,7 @@ function PickerPanel:mediaTile(kind: string, path: string, name: string): UiNode
 	local image: UiNode
 	if preview then
 		image = ui.image({
-			key = "preview:" .. path,
+			key = "preview:" .. path .. ":" .. border,
 			path = preview,
 			height = TILE_IMAGE_H,
 			fit = "cover",
@@ -339,7 +339,7 @@ function PickerPanel:mediaTile(kind: string, path: string, name: string): UiNode
 		})
 	else
 		image = ui.column({
-			key = "placeholder:" .. path,
+			key = "placeholder:" .. path .. ":" .. border,
 			height = TILE_IMAGE_H,
 			fill = "surface_variant",
 			radius = TILE_RADIUS,
