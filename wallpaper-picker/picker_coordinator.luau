@@ -73,6 +73,8 @@ function PickerCoordinator:snapshot()
 		scanning = self.browser:isScanning(),
 		paletteGroups = if self.session.showPalette then self.palettes:getGroups() else {},
 		paletteSource = self.palettes:selectedSource(),
+		paletteQuery = self.session.paletteQuery,
+		paletteHover = self.session.paletteHover,
 		currentSource = currentSource,
 		currentScheme = currentScheme,
 		selectedKind = kind,
@@ -105,6 +107,10 @@ function PickerCoordinator:dispatch(action: string, value: string?, extra: strin
 		end
 	elseif action == "palette-source" and value then
 		self.palettes:selectSource(value)
+	elseif action == "palette-search" then
+		self.session:setPaletteQuery(value or "")
+	elseif action == "palette-hover" then
+		self.session:setPaletteHover(if value == nil or value == "" then nil else value)
 	elseif action == "palette-apply" and value and extra then
 		self.palettes:apply(value, extra)
 	elseif action == "toggle-theme" then

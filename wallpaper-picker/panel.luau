@@ -18,6 +18,9 @@ local TILE_IMAGE_H = math.floor(((CONTENT_WIDTH - GRID_GAP * (GRID_COLUMNS - 1))
 local TILE_INNER_GAP = 6
 local NAME_H = 22
 local VIEWPORT_ROWS = 2
+local PALETTE_CARD_WIDTH = 460
+local PALETTE_CARD_HEIGHT = 380
+local PALETTE_ROW_H = 34
 
 local function tileHeight(): number
 	return TILE_IMAGE_H + TILE_INNER_GAP + NAME_H
@@ -177,26 +180,55 @@ function PickerPanel:monitorSelect(): UiNode
 	})
 end
 
-function PickerPanel:paletteTabs(): UiNode
-	local children = {
-		ui.button({
-			glyph = "arrow-left",
-			variant = "default",
-			tooltip = noctalia.tr("back"),
-			onClick = function()
-				self.coordinator:dispatch("back-from-palette")
-			end,
-		}),
-		ui.label({ text = noctalia.tr("palette.title"), fontSize = 14, fontWeight = "bold", flexGrow = 1 }),
-	}
-	for _, group in ipairs(self.view.paletteGroups) do
-		if #group.items > 0 then
-			local source = group.source
+function PickerPanel:paletteRow(item: PaletteItem): UiNode
+	local selected = self.view.currentSource == item.source and self.view.currentScheme == item.name
+	local key = "pal:" .. item.source .. ":" .. item.name
+	local hovered = self.view.paletteHover == key
+	local fill: string? = if selected then "primary/0.16" else if hovered then "hover" else nil
+	local color = if hovered then "on_hover" else "on_surface"
+	return ui.row({
+		key = key,
+		height = PALETTE_ROW_H,
+		fill = fill,
+		border = if selected then "primary" else "outline",
+		borderWidth = if selected then 2 else 1,
+		radius = 8,
+		paddingH = 10,
+		gap = 10,
+		align = "center",
+		onClick = function()
+			self.coordinator:dispatch("palette-apply", item.source, item.name)
+		end,
+		onHover = function(state: string)
+			self.coordinator:dispatch("palette-hover", if state == "true" then key else "")
+		end,
+	}, {
+		paletteDots(item.colors, 12),
+		ui.label({ text = item.name, fontSize = 13, flexGrow = 1, maxLines = 1, color = color }),
+	})
+end
+
+function PickerPanel:palettePopup(): UiNode
+	local view = self.view
+	local group = nil :: PaletteManager.PaletteGroup?
+	for _, candidate in ipairs(view.paletteGroups) do
+		if candidate.source == view.paletteSource then
+			group = candidate
+			break
+		end
+	end
+	local title = if group then group.title else noctalia.tr("palette.title")
+
+	local sourceButtons = {}
+	for _, candidate in ipairs(view.paletteGroups) do
+		if #candidate.items > 0 then
+			local source = candidate.source
 			table.insert(
-				children,
+				sourceButtons,
 				ui.button({
-					text = group.title,
-					variant = activeVariant(self.view.paletteSource == source),
+					key = "palette-src:" .. source,
+					text = candidate.title,
+					variant = activeVariant(view.paletteSource == source),
 					onClick = function()
 						self.coordinator:dispatch("palette-source", source)
 					end,
@@ -204,13 +236,63 @@ function PickerPanel:paletteTabs(): UiNode
 			)
 		end
 	end
-	return ui.row({ gap = 8, align = "center" }, children)
+
+	local query = (view.paletteQuery or ""):lower()
+	local rows = {}
+	if group then
+		for _, item in ipairs(group.items) do
+			if query == "" or item.name:lower():find(query, 1, true) then
+				table.insert(rows, self:paletteRow(item))
+			end
+		end
+	end
+	local list: UiNode
+	if #rows == 0 then
+		list = ui.column({ flexGrow = 1, align = "center", justify = "center" }, {
+			ui.label({ text = noctalia.tr("palette.empty"), color = "on_surface_variant" }),
+		})
+	else
+		list = ui.scroll({ flexGrow = 1, gap = 4, align = "stretch" }, rows)
+	end
+
+	local card = ui.column({
+		key = "palette-card",
+		width = PALETTE_CARD_WIDTH,
+		height = PALETTE_CARD_HEIGHT,
+		fill = "surface",
+		border = "outline",
+		borderWidth = 1,
+		radius = 12,
+		padding = 12,
+		gap = 12,
+		align = "stretch",
+	}, {
+		ui.row({ gap = 8, align = "center" }, {
+			ui.label({ text = title, fontSize = 14, fontWeight = "bold", flexGrow = 1, color = "on_surface" }),
+			ui.button({
+				glyph = "close",
+				variant = "default",
+				tooltip = noctalia.tr("close"),
+				onClick = function()
+					self.coordinator:dispatch("back-from-palette")
+				end,
+			}),
+		}),
+		ui.row({ gap = 8, align = "center" }, sourceButtons),
+		ui.input({
+			key = "palette-search",
+			value = view.paletteQuery,
+			placeholder = noctalia.tr("palette.search"),
+			onChange = function(value)
+				self.coordinator:dispatch("palette-search", value)
+			end,
+		}),
+		list,
+	})
+	return ui.row({ flexGrow = 1, justify = "end", align = "start" }, { card })
 end
 
 function PickerPanel:sourceControls(): UiNode
-	if self.view.showPalette then
-		return self:paletteTabs()
-	end
 	local children = {
 		ui.input({
 			key = "search",
@@ -376,38 +458,7 @@ function PickerPanel:mediaTile(kind: string, path: string, name: string): UiNode
 	return ui.column({ key = "tile:" .. path, flexGrow = 1, height = tileHeight(), gap = TILE_INNER_GAP }, children)
 end
 
-function PickerPanel:paletteCard(item: PaletteItem): UiNode
-	local selected = self.view.currentSource == item.source and self.view.currentScheme == item.name
-	return ui.row({
-		key = "pal:" .. item.source .. ":" .. item.name,
-		flexGrow = 1,
-		fill = item.surface or "surface_variant",
-		radius = 10,
-		padding = 10,
-		gap = 8,
-		align = "center",
-		border = if selected then "primary" else "outline",
-		borderWidth = if selected then 2 else 1,
-		onClick = function()
-			self.coordinator:dispatch("palette-apply", item.source, item.name)
-		end,
-	}, {
-		ui.label({ text = item.name, fontSize = 12, flexGrow = 1, maxLines = 1, color = "on_surface" }),
-		paletteDots(item.colors, 16),
-	})
-end
-
 function PickerPanel:content(): UiNode
-	if self.view.showPalette then
-		for _, group in ipairs(self.view.paletteGroups) do
-			if group.source == self.view.paletteSource then
-				return viewport({ grid(group.items, 2, function(item)
-					return self:paletteCard(item)
-				end) })
-			end
-		end
-		return emptyState("palette", noctalia.tr("palette.empty"))
-	end
 	local query = self.view.query
 	if self.view.tab == "video" then
 		local items = self.view.videos
@@ -435,12 +486,13 @@ function PickerPanel.render(self: any)
 		return
 	end
 	self.view = self.coordinator:snapshot()
-	panel.render(ui.column({ flexGrow = 1, gap = 12, padding = PANEL_PADDING, align = "stretch" }, {
-		self:header(),
-		self:tabBar(),
-		self:sourceControls(),
-		self:content(),
-	}))
+	local children
+	if self.view.showPalette then
+		children = { self:header(), self:tabBar(), self:palettePopup() }
+	else
+		children = { self:header(), self:tabBar(), self:sourceControls(), self:content() }
+	end
+	panel.render(ui.column({ flexGrow = 1, gap = 12, padding = PANEL_PADDING, align = "stretch" }, children))
 end
 
 function PickerPanel.open(self: any)

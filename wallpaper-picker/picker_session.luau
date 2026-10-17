@@ -8,12 +8,16 @@ function PickerSession.new()
 		tab = "images",
 		showPalette = false,
 		monitorIndex = 0,
+		paletteQuery = "",
+		paletteHover = nil :: string?,
 	}, PickerSession)
 end
 
 function PickerSession:reset()
 	self.tab = "images"
 	self.showPalette = false
+	self.paletteQuery = ""
+	self.paletteHover = nil
 end
 
 function PickerSession:selectTab(tab: string)
@@ -23,6 +27,16 @@ end
 
 function PickerSession:togglePalette()
 	self.showPalette = not self.showPalette
+	self.paletteQuery = ""
+	self.paletteHover = nil
+end
+
+function PickerSession:setPaletteQuery(query: string)
+	self.paletteQuery = query
+end
+
+function PickerSession:setPaletteHover(key: string?)
+	self.paletteHover = key
 end
 
 function PickerSession:selectMonitor(index: number)
