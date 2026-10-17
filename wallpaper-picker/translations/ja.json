@@ -5,6 +5,7 @@
     "up": "Up one folder"
   },
   "close": "Close",
+  "current": "Current",
   "favorite": {
     "add": "Add to favorites",
     "remove": "Remove from favorites"
@@ -14,6 +15,7 @@
   },
   "loading": "Loading…",
   "no_match": "No matches",
+  "no_selection": "No wallpaper selected",
   "palette": {
     "builtin": "Built-in",
     "community": "Community",
@@ -81,7 +83,12 @@
       "label": "Video Directory"
     }
   },
-  "sort": "Change sort order",
+  "sort": {
+    "change": "Change sort order",
+    "name": "Name A–Z",
+    "name_desc": "Name Z–A",
+    "random": "Random"
+  },
   "stop": "Stop",
   "tab": {
     "images": "Images",

@@ -1,5 +1,4 @@
---!nonstrict
--- Control center shortcut that opens the wallpaper picker.
+--!strict
 
 local function render()
 	shortcut.setLabel(noctalia.tr("title"))

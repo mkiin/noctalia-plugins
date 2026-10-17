@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wallpaper Picker オブジェクト構成図</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0a111d;
+      --panel: #101b2b;
+      --card: #152338;
+      --line: #5b718e;
+      --text: #f0f5fb;
+      --muted: #a8bad0;
+      --blue: #76c7ff;
+      --green: #8ee0be;
+      --gold: #f5c987;
+      --violet: #c7afff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at 50% -120px, #243e60, transparent 620px), var(--bg);
+      color: var(--text);
+      font: 15px/1.6 system-ui, -apple-system, "Noto Sans JP", sans-serif;
+    }
+    main { width: min(1480px, calc(100% - 40px)); margin: 0 auto; padding: 42px 0 72px; }
+    .eyebrow { color: var(--blue); font-size: 12px; font-weight: 750; letter-spacing: .14em; }
+    h1 { margin: 7px 0 10px; font-size: clamp(30px, 4vw, 48px); letter-spacing: -.035em; line-height: 1.2; }
+    .lead { max-width: 900px; margin: 0; color: var(--muted); font-size: 16px; }
+    .proposed { display: inline-block; margin-top: 16px; padding: 5px 11px; border: 1px solid #4f7197; border-radius: 999px; color: #c4e7ff; font-size: 12px; }
+    .diagram-wrap { margin-top: 28px; overflow-x: auto; border: 1px solid #354a65; border-radius: 22px; background: #0e1928e8; box-shadow: 0 25px 60px #0004; }
+    .diagram { min-width: 1210px; padding: 28px; }
+    .diagram-head { display: flex; justify-content: space-between; align-items: baseline; gap: 20px; margin-bottom: 22px; }
+    h2 { margin: 0; font-size: 18px; }
+    .diagram-head p { margin: 0; color: var(--muted); font-size: 12px; }
+    .top { display: flex; flex-direction: column; align-items: center; }
+    .uml { overflow: hidden; border: 1px solid #617895; border-radius: 13px; background: var(--card); box-shadow: 0 8px 22px #0002; }
+    .uml h3 { margin: 0; padding: 11px 13px 9px; border-bottom: 1px solid #435a75; font: 700 15px/1.3 ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .uml .stereotype { display: block; margin-bottom: 4px; color: var(--muted); font: 11px/1.2 system-ui, sans-serif; letter-spacing: .05em; }
+    .uml .fields, .uml .methods { margin: 0; padding: 9px 13px; list-style: none; font: 12px/1.62 ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .uml .fields { border-bottom: 1px solid #435a75; color: #c4dcf2; }
+    .uml .methods { color: #e5f1ff; }
+    .uml li { overflow-wrap: anywhere; }
+    .uml li + li { margin-top: 2px; }
+    .uml.presentation { border-top: 4px solid var(--blue); }
+    .uml.browse { border-top: 4px solid var(--green); }
+    .uml.favorite { border-top: 4px solid var(--gold); }
+    .uml.palette { border-top: 4px solid var(--violet); }
+    .uml.wallpaper { border-top: 4px solid #ff9e91; }
+    .top .uml:first-child { width: 300px; }
+    .top .uml:last-child { width: 420px; }
+    .single-link { width: 1px; height: 35px; background: var(--line); }
+    .fanout { position: relative; height: 49px; }
+    .fanout::before { content: ""; position: absolute; top: 0; left: 50%; height: 24px; border-left: 1px solid var(--line); }
+    .fanout::after { content: ""; position: absolute; top: 23px; left: 10%; width: 80%; border-top: 1px solid var(--line); }
+    .branches { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; }
+    .branch { position: relative; min-width: 0; }
+    .branch::before { content: ""; position: absolute; top: -26px; left: 50%; height: 26px; border-left: 1px solid var(--line); }
+    .branch > .uml { min-height: 327px; }
+    .sub-link { width: 1px; height: 26px; margin: 0 auto; background: var(--line); }
+    .sub-link.async { width: 0; border-left: 1px dashed var(--line); background: none; }
+    .branch .sub-uml { min-height: 186px; }
+    .tag { display: inline-block; margin: 11px 0 0; padding: 4px 8px; border-radius: 7px; background: #24364d; color: #cee3f6; font-size: 11px; }
+    .legend { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; margin-top: 26px; padding-top: 17px; border-top: 1px solid #344a63; color: var(--muted); font-size: 12px; }
+    .legend i { display: inline-block; width: 30px; height: 0; margin-right: 6px; border-top: 1px solid var(--line); vertical-align: middle; }
+    .legend i.dashed { border-top-style: dashed; }
+    .notes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 22px; }
+    .note { padding: 21px; border: 1px solid #354a65; border-radius: 16px; background: var(--panel); }
+    .note h2 { margin-bottom: 8px; font-size: 16px; }
+    .note p { margin: 0; color: var(--muted); font-size: 13px; }
+    .note code, .lead code { color: #bde2ff; font: .95em ui-monospace, SFMono-Regular, Consolas, monospace; }
+    @media (max-width: 850px) { .notes { grid-template-columns: 1fr; } }
+    @media (max-width: 600px) { main { width: calc(100% - 24px); padding-top: 28px; } .diagram { padding: 20px; } .diagram-head { display: block; } .diagram-head p { margin-top: 5px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow">WALLPAPER PICKER / 現在の実装</div>
+    <h1>状態と操作をまとめたオブジェクト構成図</h1>
+    <p class="lead">各オブジェクトは Luau のテーブルと <code>setmetatable</code> で実装しています。言語組み込みのクラスではありません。実線は保持する参照、破線はプラグインの状態チャネルを介した通信を示します。</p>
+    <span class="proposed">メタテーブルによるオブジェクト指向パターン</span>
+
+    <div class="diagram-wrap" role="region" aria-label="Wallpaper Picker のオブジェクト構成図。狭い画面では横にスクロールできます" tabindex="0">
+      <section class="diagram" aria-labelledby="diagram-title">
+        <div class="diagram-head"><h2 id="diagram-title">オブジェクトと関係</h2><p>− 保持する状態　＋ 呼び出す操作。アクセス制御はありません。</p></div>
+        <div class="top">
+          <article class="uml presentation">
+            <h3><span class="stereotype">«表示»</span>PickerPanel</h3>
+            <ul class="fields"><li>− coordinator: PickerCoordinator</li></ul>
+            <ul class="methods"><li>＋ render()</li><li>＋ open() / close()</li></ul>
+          </article>
+          <div class="single-link" aria-hidden="true"></div>
+          <article class="uml presentation">
+            <h3><span class="stereotype">«調停»</span>PickerCoordinator</h3>
+            <ul class="fields"><li>− session: PickerSession</li><li>− browser: MediaBrowser</li><li>− thumbnails: ThumbnailCache</li><li>− favorites: FavoriteStore</li><li>− palettes: PaletteManager</li><li>− wallpapers: WallpaperController</li></ul>
+            <ul class="methods"><li>＋ dispatch(action, value?, extra?)</li><li>＋ snapshot(): PickerView</li><li>＋ favorite(kind, path)</li></ul>
+          </article>
+        </div>
+        <div class="fanout" aria-hidden="true"></div>
+        <div class="branches">
+          <div class="branch">
+            <article class="uml presentation">
+              <h3><span class="stereotype">«画面状態»</span>PickerSession</h3>
+              <ul class="fields"><li>− tab: MediaKind</li><li>− monitorIndex: number</li><li>− showPalette: boolean</li></ul>
+              <ul class="methods"><li>＋ selectTab(kind)</li><li>＋ selectMonitor(index)</li><li>＋ togglePalette()</li><li>＋ connector()</li></ul>
+            </article>
+          </div>
+          <div class="branch">
+            <article class="uml browse">
+              <h3><span class="stereotype">«一覧・検索»</span>MediaBrowser</h3>
+              <ul class="fields"><li>− entries: MediaEntry[]</li><li>− query: string</li><li>− sortMode: SortMode</li><li>− folder: string?</li><li>− thumbnails: ThumbnailCache</li></ul>
+              <ul class="methods"><li>＋ scanImages() / scanVideos()</li><li>＋ setQuery(query)</li><li>＋ cycleSort()</li><li>＋ enterFolder(path) / goUp()</li><li>＋ visibleImages() / visibleVideos()</li></ul>
+            </article>
+            <div class="sub-link" aria-hidden="true"></div>
+            <article class="uml browse sub-uml">
+              <h3><span class="stereotype">«画像の準備»</span>ThumbnailCache</h3>
+              <ul class="fields"><li>− ready: Map&lt;Path, Path&gt;</li><li>− pending: Set&lt;Path&gt;</li><li>− queue: Job[]</li></ul>
+              <ul class="methods"><li>＋ get(path)</li><li>＋ request(path, kind)</li><li>− pump()</li></ul>
+            </article>
+          </div>
+          <div class="branch">
+            <article class="uml favorite">
+              <h3><span class="stereotype">«永続化»</span>FavoriteStore</h3>
+              <ul class="fields"><li>− images: FavoriteMap</li><li>− videos: FavoriteMap</li></ul>
+              <ul class="methods"><li>＋ load()</li><li>＋ get(kind, path)</li><li>＋ toggle(kind, path, source, scheme)</li></ul>
+            </article>
+          </div>
+          <div class="branch">
+            <article class="uml palette">
+              <h3><span class="stereotype">«配色»</span>PaletteManager</h3>
+              <ul class="fields"><li>− groups: PaletteGroup[]</li><li>− currentSource: string?</li><li>− currentScheme: string?</li></ul>
+              <ul class="methods"><li>＋ getGroups()</li><li>＋ selectSource(source)</li><li>＋ apply(source, scheme)</li><li>＋ toggleMode()</li></ul>
+            </article>
+          </div>
+          <div class="branch">
+            <article class="uml wallpaper">
+              <h3><span class="stereotype">«壁紙の適用»</span>WallpaperController</h3>
+              <ul class="fields"><li>− session: PickerSession</li><li>− palettes: PaletteManager</li><li>− favorites: FavoriteStore</li><li>− selectedKind: string</li><li>− selectedPath: string</li></ul>
+              <ul class="methods"><li>＋ applyImage(path) / applyVideo(path)</li><li>＋ toggleFavorite()</li><li>＋ pauseOrResume()</li><li>＋ stop()</li></ul>
+            </article>
+            <div class="sub-link async" aria-hidden="true"></div>
+            <article class="uml wallpaper sub-uml">
+              <h3><span class="stereotype">«独立サービス»</span>service.luau</h3>
+              <ul class="fields"><li>− processes: ProcessMap</li><li>− assignments: VideoMap</li></ul>
+              <ul class="methods"><li>＋ start(output, path)</li><li>＋ freeze(output) / thaw(output)</li><li>＋ clear(output)</li></ul>
+            </article>
+            <span class="tag">状態チャネルで通信</span>
+          </div>
+        </div>
+        <div class="legend"><span><i></i>保持する参照・メソッド呼び出し</span><span><i class="dashed"></i>状態チャネル経由の通信</span><span>各オブジェクトは、このパネルの実行単位で原則１つです。</span></div>
+      </section>
+    </div>
+
+    <div class="notes">
+      <section class="note"><h2>データと操作を同じ場所へ置く</h2><p>検索語と並べ替えは <code>MediaBrowser</code> が保持し、検索・整列・一覧生成も同じオブジェクトが担当します。サムネイルの待ち行列は <code>ThumbnailCache</code> が保持します。</p></section>
+      <section class="note"><h2>依存の向きを固定する</h2><p><code>PickerPanel</code> は実行時に <code>PickerCoordinator</code> を参照します。調停役が各オブジェクトを呼び出し、下位のオブジェクトから画面を参照しません。</p></section>
+      <section class="note"><h2>既存サービスの境界を保つ</h2><p><code>WallpaperController</code> が動画の操作を依頼し、<code>service.luau</code> が <code>mpvpaper</code> のプロセスを管理します。サービスは現在も手続き的なモジュールです。</p></section>
+    </div>
+  </main>
+</body>
+</html>
