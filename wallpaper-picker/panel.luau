@@ -3,6 +3,7 @@
 local PickerCoordinator = require("./picker_coordinator.luau")
 local MediaBrowser = require("./media_browser.luau")
 local PaletteManager = require("./palette_manager.luau")
+local Tiles = require("./tiles.luau")
 
 type ImageEntry = MediaBrowser.ImageEntry
 type VideoEntry = MediaBrowser.VideoEntry
@@ -14,8 +15,6 @@ local GRID_COLUMNS = 4
 local GRID_GAP = 12
 local GRID_INSET = 8
 local GRID_ROW_GAP = GRID_INSET
-local TILE_RADIUS = 12
-local TILE_BORDER_WIDTH = 1
 local SCROLL_OVERHEAD = 8 + 8 + 14
 local TILE_MARGIN = 16
 local CONTENT_WIDTH = PANEL_WIDTH - PANEL_PADDING * 2 - SCROLL_OVERHEAD
@@ -376,103 +375,6 @@ function PickerPanel:sourceControls(): UiNode
 	return ui.row({ gap = 8, align = "center" }, children)
 end
 
-function PickerPanel:imageTile(item: ImageEntry): UiNode
-	if item.isDir then
-		local directory = ui.column({
-			width = TILE_WIDTH,
-			height = TILE_IMAGE_H,
-			fill = "surface_variant",
-			radius = TILE_RADIUS,
-			border = "outline",
-			borderWidth = TILE_BORDER_WIDTH,
-			align = "center",
-			justify = "center",
-			tooltip = item.path,
-			onClick = function()
-				self.coordinator:dispatch("enter-folder", item.path)
-			end,
-		}, { ui.glyph({ name = "folder", size = 44, color = "primary" }) })
-		local children = { directory }
-		if self.view.showNames then
-			table.insert(children, ui.label({ text = item.name, fontSize = 12, color = "on_surface", maxLines = 1 }))
-		end
-		return ui.column(
-			{ key = "dir:" .. item.path, width = TILE_WIDTH, height = tileHeight(), gap = TILE_INNER_GAP },
-			children
-		)
-	end
-	return self:mediaTile("images", item.path, item.name)
-end
-
-function PickerPanel:videoTile(item: VideoEntry): UiNode
-	return self:mediaTile("video", item.path, item.name)
-end
-
-function PickerPanel:mediaTile(kind: string, path: string, name: string): UiNode
-	local selected = self.view.selectedKind == kind and self.view.selectedPath == path
-	local favorite = self.coordinator:favorite(kind, path)
-	local preview = self.coordinator:thumbnail(path)
-	local border = if selected then "primary" else if favorite then "tertiary" else "outline"
-	local action = function()
-		self.coordinator:dispatch(if kind == "video" then "apply-video" else "apply-image", path)
-	end
-	local image: UiNode
-	if preview then
-		image = ui.image({
-			key = "preview:" .. path .. ":" .. border,
-			path = preview,
-			width = TILE_WIDTH,
-			height = TILE_IMAGE_H,
-			fit = "cover",
-			radius = TILE_RADIUS,
-			border = border,
-			borderWidth = TILE_BORDER_WIDTH,
-			tooltip = name,
-			onClick = action,
-		})
-	else
-		image = ui.column({
-			key = "placeholder:" .. path .. ":" .. border,
-			width = TILE_WIDTH,
-			height = TILE_IMAGE_H,
-			fill = "surface_variant",
-			radius = TILE_RADIUS,
-			border = border,
-			borderWidth = TILE_BORDER_WIDTH,
-			align = "center",
-			justify = "center",
-			tooltip = name,
-			onClick = action,
-		}, {
-			ui.glyph({
-				name = if kind == "video" then "movie" else "photo",
-				size = 32,
-				color = "on_surface_variant",
-			}),
-		})
-	end
-	local children = { image }
-	if self.view.showNames or favorite then
-		local labels = {}
-		if self.view.showNames then
-			table.insert(
-				labels,
-				ui.label({ text = name, fontSize = 12, maxLines = 1, flexGrow = 1, color = "on_surface" })
-			)
-		else
-			table.insert(labels, ui.spacer({ flexGrow = 1 }))
-		end
-		if favorite then
-			table.insert(labels, paletteDots(favorite.palette, 12))
-		end
-		table.insert(children, ui.row({ gap = 6, align = "center" }, labels))
-	end
-	return ui.column(
-		{ key = "tile:" .. path, width = TILE_WIDTH, height = tileHeight(), gap = TILE_INNER_GAP },
-		children
-	)
-end
-
 function PickerPanel:content(): UiNode
 	local query = self.view.query
 	if self.view.tab == "video" then
@@ -481,7 +383,7 @@ function PickerPanel:content(): UiNode
 			return emptyState("movie-off", if query ~= "" then noctalia.tr("no_match") else noctalia.tr("video.empty"))
 		end
 		return viewport({ grid(items, GRID_COLUMNS, function(item)
-			return self:videoTile(item)
+			return Tiles.videoTile(self, item)
 		end) })
 	end
 	local items = self.view.images
@@ -492,7 +394,7 @@ function PickerPanel:content(): UiNode
 		return emptyState("photo", if query ~= "" then noctalia.tr("no_match") else noctalia.tr("image.empty"))
 	end
 	return viewport({ grid(items, GRID_COLUMNS, function(item)
-		return self:imageTile(item)
+		return Tiles.imageTile(self, item)
 	end) })
 end
 
