@@ -121,7 +121,7 @@ entry = "service.luau"
 [[panel]]
 id = "picker"
 entry = "panel.luau"
-width = 1060
+width = 1090
 height = 640
 placement = "floating"
 position = "auto"
