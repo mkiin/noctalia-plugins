@@ -284,7 +284,7 @@ local function clearVideo(connector)
 	publish()
 end
 
-local function clearAll(afterKill: (() -> ())?)
+local function clearAll(restoreWallpaper: boolean?)
 	transitionEpoch += 1
 	local epoch = transitionEpoch
 	snapshotAssignments()
@@ -309,9 +309,7 @@ local function clearAll(afterKill: (() -> ())?)
 		if epoch ~= transitionEpoch then
 			return
 		end
-		if afterKill then
-			afterKill()
-		else
+		if restoreWallpaper ~= false then
 			for _, output in ipairs(noctalia.outputs()) do
 				noctalia.setWallpaperEnabled(output.name, true)
 			end
@@ -470,6 +468,8 @@ noctalia.state.watch("command", function(cmd)
 		clearVideo(cmd.connector)
 	elseif cmd.action == "clear-all" then
 		clearAll()
+	elseif cmd.action == "clear-for-image" then
+		clearAll(false)
 	elseif cmd.action == "freeze" then
 		onIpc("freeze", cmd.connector)
 	elseif cmd.action == "thaw" then

@@ -96,17 +96,22 @@ function WallpaperController:applyImage(path: string)
 		noctalia.setWallpaper(path)
 	end
 	if hadVideo then
-		if connector then
-			noctalia.setWallpaperEnabled(connector, true)
-		else
-			for _, output in ipairs(noctalia.outputs()) do
-				noctalia.setWallpaperEnabled(output.name, true)
+		noctalia.runAsync("sleep 1.2", function()
+			if self.nonce ~= ticket then
+				return
 			end
-		end
-		noctalia.runAsync("sleep 0.3", function()
-			if self.nonce == ticket then
-				noctalia.state.set("command", { action = "clear-all", nonce = ticket })
+			if connector then
+				noctalia.setWallpaperEnabled(connector, true)
+			else
+				for _, output in ipairs(noctalia.outputs()) do
+					noctalia.setWallpaperEnabled(output.name, true)
+				end
 			end
+			noctalia.runAsync("sleep 0.15", function()
+				if self.nonce == ticket then
+					noctalia.state.set("command", { action = "clear-for-image", nonce = ticket })
+				end
+			end)
 		end)
 	end
 	local favorite = self.favorites:get("images", path)
