@@ -163,36 +163,14 @@ local function systemdProperties()
 	return props
 end
 
-local function killMpvpaper(connector: string, callback: ((CommandResult) -> ())?, signal: number?)
-	local sig = (type(signal) == "number" and signal > 0) and signal or 15
+local function killMpvpaper(connector: string, callback: ((CommandResult) -> ())?)
 	local killCmd
 	local pattern = pkillPattern(connector)
 	if launchedAsSystemd[connector] then
 		local unitName = unitNameFor(connector)
-		if isPaused[connector] then
-			killCmd = "systemctl --user thaw "
-				.. shellQuote(unitName)
-				.. " ; systemctl --user stop "
-				.. shellQuote(unitName)
-		else
-			killCmd = "systemctl --user stop " .. shellQuote(unitName)
-		end
-	elseif isPaused[connector] then
-		killCmd = "pkill -A -CONT -f -- " .. pattern .. " ; pkill -A -" .. sig .. " -f -- " .. pattern
+		killCmd = "systemctl --user stop " .. shellQuote(unitName)
 	else
-		killCmd = "pkill -A -" .. sig .. " -f -- " .. pattern
-	end
-	if not launchedAsSystemd[connector] then
-		killCmd = killCmd
-			.. " ; if pgrep -A -f -- "
-			.. pattern
-			.. " >/dev/null 2>&1; then timeout 2s pidwait -A -f -- "
-			.. pattern
-			.. " >/dev/null 2>&1 || { pkill -A -KILL -f -- "
-			.. pattern
-			.. " 2>/dev/null; timeout 1s pidwait -A -f -- "
-			.. pattern
-			.. " >/dev/null 2>&1 || true; }; fi"
+		killCmd = "pkill -A -KILL -f -- " .. pattern .. " 2>/dev/null; true"
 	end
 
 	isPaused[connector] = false
@@ -349,22 +327,6 @@ local function clearAll(afterKill: (() -> ())?)
 	end
 end
 
-local function applyImage(path, connector)
-	if type(path) ~= "string" or path == "" then
-		return
-	end
-	clearAll(function()
-		if type(connector) == "string" and connector ~= "" and connector ~= "*" then
-			noctalia.setWallpaper(connector, path)
-		else
-			noctalia.setWallpaper(path)
-		end
-		for _, output in ipairs(noctalia.outputs()) do
-			noctalia.setWallpaperEnabled(output.name, true)
-		end
-	end)
-end
-
 local function setVideo(connector, path)
 	if not available or type(connector) ~= "string" or connector == "" or type(path) ~= "string" or path == "" then
 		return
@@ -434,9 +396,9 @@ function onOutputsChanged()
 	lastPresent = present
 end
 
-function onExit(signal)
+function onExit(_signal)
 	for connector in pairs(assignments) do
-		killMpvpaper(connector, nil, signal)
+		killMpvpaper(connector, nil)
 	end
 end
 
@@ -447,8 +409,6 @@ end
 function onIpc(event, payload)
 	if event == "clear-all" then
 		clearAll()
-	elseif event == "apply-image" then
-		applyImage(payload, "*")
 	elseif event == "clear" then
 		clearVideo(payload)
 	elseif event == "reapply" then
@@ -501,8 +461,6 @@ noctalia.state.watch("command", function(cmd)
 	end
 	if cmd.action == "set" then
 		setVideo(cmd.connector, cmd.path)
-	elseif cmd.action == "apply-image" then
-		applyImage(cmd.path, cmd.connector)
 	elseif cmd.action == "clear" then
 		clearVideo(cmd.connector)
 	elseif cmd.action == "clear-all" then
