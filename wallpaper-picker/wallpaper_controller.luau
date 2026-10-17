@@ -88,12 +88,10 @@ end
 function WallpaperController:applyImage(path: string)
 	local connector = self.session:connector()
 	self:expectSelection("images", path, connector)
-	noctalia.state.set("command", { action = "clear-all", nonce = self:nextNonce() })
-	if connector then
-		noctalia.setWallpaper(connector, path)
-	else
-		noctalia.setWallpaper(path)
-	end
+	noctalia.state.set(
+		"command",
+		{ action = "apply-image", connector = connector or "*", path = path, nonce = self:nextNonce() }
+	)
 	local favorite = self.favorites:get("images", path)
 	if favorite and favorite.source and favorite.scheme then
 		self.palettes:apply(favorite.source, favorite.scheme)

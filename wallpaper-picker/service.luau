@@ -11,6 +11,8 @@ local lastAssignments = {}
 local launchedAsSystemd = {}
 local lastPresent = {}
 local isPaused = {}
+local generation = {}
+local transitionEpoch = 0
 local available = false
 local mpvpaperSupportsAutoMode = false
 
@@ -27,6 +29,12 @@ local function unitNameFor(connector: string)
 		return "mpvpaper.scope"
 	end
 	return "mpvpaper-" .. connector:gsub("[^%w%-]", "_") .. ".scope"
+end
+
+local function nextGeneration(connector: string): number
+	local value = (generation[connector] or 0) + 1
+	generation[connector] = value
+	return value
 end
 
 local function pkillPattern(connector: string)
@@ -174,6 +182,18 @@ local function killMpvpaper(connector: string, callback: ((CommandResult) -> ())
 	else
 		killCmd = "pkill -" .. sig .. " -f -- " .. pattern
 	end
+	if not launchedAsSystemd[connector] then
+		killCmd = killCmd
+			.. " ; if pgrep -A -f -- "
+			.. pattern
+			.. " >/dev/null 2>&1; then timeout 2s pidwait -A -f -- "
+			.. pattern
+			.. " >/dev/null 2>&1 || { pkill -KILL -f -- "
+			.. pattern
+			.. " 2>/dev/null; timeout 1s pidwait -A -f -- "
+			.. pattern
+			.. " >/dev/null 2>&1 || true; }; fi"
+	end
 
 	isPaused[connector] = false
 
@@ -185,7 +205,11 @@ local function killMpvpaper(connector: string, callback: ((CommandResult) -> ())
 end
 
 local function startMpvpaper(connector, path)
+	local ticket = nextGeneration(connector)
 	killMpvpaper(connector, function()
+		if generation[connector] ~= ticket or assignments[connector] ~= path then
+			return
+		end
 		launchedAsSystemd[connector] = cfg("run_as_systemd")
 		persist()
 
@@ -210,12 +234,10 @@ local function startMpvpaper(connector, path)
 			cmd = "systemd-run --user --scope " .. propsCmd .. "--unit=" .. shellQuote(unitName) .. " " .. cmd
 		end
 
-		noctalia.runAsync("exec " .. cmd .. " >/dev/null 2>&1 &", function() end)
-		noctalia.runAsync("sleep 0.8", function()
-			forEachOutput(connector, function(name)
-				noctalia.setWallpaperEnabled(name, false)
-			end)
+		forEachOutput(connector, function(name)
+			noctalia.setWallpaperEnabled(name, false)
 		end)
+		noctalia.runAsync("exec " .. cmd .. " >/dev/null 2>&1 &", function() end)
 	end)
 end
 
@@ -262,35 +284,92 @@ local function clearVideo(connector)
 
 	snapshotAssignments()
 	assignments[connector] = nil
+	local ticket = nextGeneration(connector)
 	persist()
 
 	killMpvpaper(connector, function()
+		if generation[connector] ~= ticket then
+			return
+		end
 		forEachOutput(connector, function(name)
-			noctalia.setWallpaperEnabled(name, true)
+			if not assignments["*"] and not assignments[name] then
+				noctalia.setWallpaperEnabled(name, true)
+			end
 		end)
 	end)
 
 	publish()
 end
 
-local function clearAll()
+local function clearAll(afterKill: (() -> ())?)
+	transitionEpoch += 1
+	local epoch = transitionEpoch
 	snapshotAssignments()
+	local targets = {}
 	for connector in pairs(assignments) do
-		killMpvpaper(connector, function()
-			forEachOutput(connector, function(name)
-				noctalia.setWallpaperEnabled(name, true)
-			end)
-		end)
+		targets[connector] = true
+	end
+	for connector in pairs(lastAssignments) do
+		targets[connector] = true
+	end
+	for connector in pairs(generation) do
+		targets[connector] = true
 	end
 	assignments = {}
 	persist()
 	publish()
+	local remaining = 0
+	for _ in pairs(targets) do
+		remaining += 1
+	end
+	local function finish()
+		if epoch ~= transitionEpoch then
+			return
+		end
+		if afterKill then
+			afterKill()
+		else
+			for _, output in ipairs(noctalia.outputs()) do
+				noctalia.setWallpaperEnabled(output.name, true)
+			end
+		end
+	end
+	if remaining == 0 then
+		finish()
+		return
+	end
+	for connector in pairs(targets) do
+		nextGeneration(connector)
+		killMpvpaper(connector, function()
+			remaining -= 1
+			if remaining == 0 then
+				finish()
+			end
+		end)
+	end
+end
+
+local function applyImage(path, connector)
+	if type(path) ~= "string" or path == "" then
+		return
+	end
+	clearAll(function()
+		if type(connector) == "string" and connector ~= "" and connector ~= "*" then
+			noctalia.setWallpaper(connector, path)
+		else
+			noctalia.setWallpaper(path)
+		end
+		for _, output in ipairs(noctalia.outputs()) do
+			noctalia.setWallpaperEnabled(output.name, true)
+		end
+	end)
 end
 
 local function setVideo(connector, path)
 	if not available or type(connector) ~= "string" or connector == "" or type(path) ~= "string" or path == "" then
 		return
 	end
+	transitionEpoch += 1
 
 	if connector == "*" then
 		for conn in pairs(assignments) do
@@ -420,6 +499,8 @@ noctalia.state.watch("command", function(cmd)
 	end
 	if cmd.action == "set" then
 		setVideo(cmd.connector, cmd.path)
+	elseif cmd.action == "apply-image" then
+		applyImage(cmd.path, cmd.connector)
 	elseif cmd.action == "clear" then
 		clearVideo(cmd.connector)
 	elseif cmd.action == "clear-all" then
