@@ -24,8 +24,6 @@ local PALETTE_INSET = 8
 local PALETTE_ROW_GAP = PALETTE_INSET
 local PALETTE_LIST_ROWS = 5
 local PALETTE_LIST_H = PALETTE_INSET + PALETTE_LIST_ROWS * (PALETTE_ROW_H + PALETTE_ROW_GAP)
-local PALETTE_CARD_FRAME_H = 174
-local PALETTE_CARD_HEIGHT = PALETTE_CARD_FRAME_H + PALETTE_LIST_H
 
 local function tileHeight(): number
 	return TILE_IMAGE_H + TILE_INNER_GAP + NAME_H
@@ -251,19 +249,19 @@ function PickerPanel:palettePopup(): UiNode
 			end
 		end
 	end
-	local list: UiNode
+	local body: UiNode
 	if #rows == 0 then
-		list = ui.column({ flexGrow = 1, align = "center", justify = "center" }, {
+		body = ui.column({ flexGrow = 1, align = "center", justify = "center" }, {
 			ui.label({ text = noctalia.tr("palette.empty"), color = "on_surface_variant" }),
 		})
 	else
-		list = ui.scroll({ flexGrow = 1, gap = PALETTE_ROW_GAP, align = "stretch" }, rows)
+		body = ui.scroll({ flexGrow = 1, gap = PALETTE_ROW_GAP, align = "stretch" }, rows)
 	end
+	local list = ui.row({ key = "palette-list", height = PALETTE_LIST_H, align = "stretch" }, { body })
 
 	local card = ui.column({
 		key = "palette-card",
 		width = PALETTE_CARD_WIDTH,
-		height = PALETTE_CARD_HEIGHT,
 		fill = "surface",
 		border = "outline",
 		borderWidth = 1,
@@ -511,8 +509,11 @@ end
 
 local picker: any = PickerPanel.new()
 
-function onOpen(_context)
+function onOpen(context)
 	picker:open()
+	if context == "palette" then
+		picker.coordinator:dispatch("toggle-palette")
+	end
 end
 
 function onClose()
