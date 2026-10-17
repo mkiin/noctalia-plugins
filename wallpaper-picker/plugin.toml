@@ -8,7 +8,7 @@
 
 id = "mkiin/wallpaper-picker"
 name = "Wallpaper Picker"
-version = "0.1.0"
+version = "0.1.1"
 plugin_api = 31
 author = "mkiin"
 license = "MIT"
@@ -127,12 +127,14 @@ id = "service"
 entry = "service.luau"
 
 # The picker panel (Images / Video tabs).
+# Floating (not attached): an attached panel inherits its host bar's layer and
+# background opacity, which turns transparent on capsule/float bars.
 [[panel]]
 id = "picker"
 entry = "panel.luau"
 width = 1000
 height = 760
-placement = "attached"
+placement = "floating"
 position = "auto"
 
 # Bar tile that opens the picker.

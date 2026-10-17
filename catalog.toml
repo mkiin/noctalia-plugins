@@ -7,7 +7,7 @@
 [[plugin]]
 id = "mkiin/wallpaper-picker"
 name = "Wallpaper Picker"
-version = "0.1.0"
+version = "0.1.1"
 author = "mkiin"
 license = "MIT"
 icon = "photo"
