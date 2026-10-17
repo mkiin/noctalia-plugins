@@ -1,95 +1,95 @@
 {
-  "all_outputs": "すべての出力",
-  "back": "戻る",
+  "all_outputs": "All Outputs",
+  "back": "Back",
   "browse": {
-    "up": "1つ上のフォルダへ"
+    "up": "Up one folder"
   },
-  "close": "閉じる",
+  "close": "Close",
   "favorite": {
-    "add": "お気に入りに追加",
-    "remove": "お気に入りから削除"
+    "add": "Add to favorites",
+    "remove": "Remove from favorites"
   },
   "image": {
-    "empty": "設定されたフォルダに壁紙が見つかりません"
+    "empty": "No wallpapers found in the configured directory"
   },
-  "loading": "読み込み中…",
-  "no_match": "一致なし",
+  "loading": "Loading…",
+  "no_match": "No matches",
   "palette": {
-    "builtin": "組み込み",
-    "community": "コミュニティ",
-    "custom": "カスタム",
-    "empty": "パレットが見つかりません",
-    "title": "パレット"
+    "builtin": "Built-in",
+    "community": "Community",
+    "custom": "Custom",
+    "empty": "No palettes found",
+    "title": "Palette"
   },
-  "pause": "一時停止",
-  "refresh": "再読み込み",
-  "resume": "再開",
-  "search": "壁紙を検索",
+  "pause": "Pause",
+  "refresh": "Refresh",
+  "resume": "Resume",
+  "search": "Search wallpapers",
   "settings": {
     "allowed_cpus": {
-      "label": "許可する CPU"
+      "label": "Allowed CPUs"
     },
     "auto_pause": {
-      "description": "ウィンドウが壁紙を覆っている間は再生を一時停止します（実験的: すべてのコンポジタで動作するとは限りません）",
-      "label": "覆われたときに一時停止",
+      "description": "Pause playback while a window covers the wallpaper (experimental: may not work on all compositors)",
+      "label": "Pause When Covered",
       "options": {
-        "full": "全画面",
-        "max": "最大化",
-        "off": "オフ"
+        "full": "Fullscreen",
+        "max": "Maximized",
+        "off": "Off"
       }
     },
     "cpu_quota": {
-      "label": "CPU クォータ"
+      "label": "CPU Quota"
     },
     "cpu_weight": {
-      "label": "CPU ウェイト"
+      "label": "CPU Weight"
     },
     "glyph": {
-      "label": "グリフ"
+      "label": "Glyph"
     },
     "hardware_decode": {
-      "description": "GPU による動画デコードを使用する (mpv hwdec=auto)",
-      "label": "ハードウェアデコード"
+      "description": "Use GPU video decoding (mpv hwdec=auto)",
+      "label": "Hardware Decoding"
     },
     "image_directory": {
-      "description": "壁紙画像を走査するフォルダ。空の場合は Noctalia の壁紙ディレクトリを使用します",
-      "label": "画像ディレクトリ"
+      "description": "Folder scanned for wallpaper images; defaults to the Noctalia wallpaper directory when empty",
+      "label": "Image Directory"
     },
     "memory_max": {
-      "label": "最大メモリ"
+      "label": "Max Memory"
     },
     "mpv_options": {
-      "description": "追加の mpv オプション（スペース区切り）。例: panscan=1.0 video-zoom=0.1",
-      "label": "追加 mpv オプション"
+      "description": "Additional space-separated mpv options, e.g. panscan=1.0 video-zoom=0.1",
+      "label": "Extra mpv Options"
     },
     "mute": {
-      "label": "音声をミュート"
+      "label": "Mute Audio"
     },
     "nice": {
-      "label": "Nice 値"
+      "label": "Nice Value"
     },
     "run_as_systemd": {
-      "description": "壁紙を systemd の一時スコープで実行し、厳密なリソース制限を適用します",
-      "label": "systemd サービスとして実行"
+      "description": "Run the wallpaper in a systemd transient scope to enforce strict resource limits",
+      "label": "Run as systemd Service"
     },
     "show_names": {
-      "description": "各タイルのサムネイル下にファイル名を表示します",
-      "label": "ファイル名を表示"
+      "description": "Show each tile's file name below its thumbnail",
+      "label": "Show File Names"
     },
     "video_directory": {
-      "description": "壁紙動画を走査するフォルダ。空の場合は ~/Videos を使用します",
-      "label": "動画ディレクトリ"
+      "description": "Folder scanned for wallpaper videos; defaults to ~/Videos when empty",
+      "label": "Video Directory"
     }
   },
-  "sort": "並び順を変更",
-  "stop": "停止",
+  "sort": "Change sort order",
+  "stop": "Stop",
   "tab": {
-    "images": "画像",
-    "video": "動画"
+    "images": "Images",
+    "video": "Video"
   },
-  "theme-mode": "ライト / ダークを切り替え",
-  "title": "壁紙ピッカー",
+  "theme-mode": "Toggle light / dark",
+  "title": "Wallpaper Picker",
   "video": {
-    "empty": "設定されたフォルダに動画が見つかりません"
+    "empty": "No videos found in the configured directory"
   }
 }
