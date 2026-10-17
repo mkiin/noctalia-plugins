@@ -18,13 +18,16 @@ local TILE_IMAGE_H = math.floor(((CONTENT_WIDTH - GRID_GAP * (GRID_COLUMNS - 1))
 local TILE_INNER_GAP = 6
 local NAME_H = 22
 local VIEWPORT_ROWS = 2
+-- ui.scroll reserves Style::spaceSm (8px) above and below its content, so the
+-- scroll height must include that padding or two rows never fit exactly.
+local SCROLL_VIEWPORT_PAD_V = 8
 
 local function tileHeight(): number
 	return TILE_IMAGE_H + TILE_INNER_GAP + NAME_H
 end
 
 local function viewportHeight(): number
-	return tileHeight() * VIEWPORT_ROWS + GRID_GAP
+	return tileHeight() * VIEWPORT_ROWS + GRID_GAP + SCROLL_VIEWPORT_PAD_V * 2
 end
 
 local function activeVariant(selected: boolean): "primary" | "outline"
@@ -96,6 +99,7 @@ function PickerPanel:tabBar(): UiNode
 	local isFavorite = view.isFavorite
 	local children = {
 		ui.button({
+			key = "tab-images",
 			text = noctalia.tr("tab.images"),
 			variant = activeVariant(view.tab == "images"),
 			onClick = function()
@@ -103,6 +107,7 @@ function PickerPanel:tabBar(): UiNode
 			end,
 		}),
 		ui.button({
+			key = "tab-video",
 			text = noctalia.tr("tab.video"),
 			variant = activeVariant(view.tab == "video"),
 			onClick = function()
@@ -123,6 +128,7 @@ function PickerPanel:tabBar(): UiNode
 			end,
 		}),
 		ui.button({
+			key = "toggle-theme",
 			glyph = if view.isDark then "moon" else "sun",
 			variant = "default",
 			tooltip = noctalia.tr("theme-mode"),
@@ -131,6 +137,7 @@ function PickerPanel:tabBar(): UiNode
 			end,
 		}),
 		ui.button({
+			key = "toggle-palette",
 			glyph = "palette",
 			variant = toolbarVariant(view.showPalette),
 			tooltip = noctalia.tr("palette.title"),
@@ -139,6 +146,7 @@ function PickerPanel:tabBar(): UiNode
 			end,
 		}),
 		ui.button({
+			key = "refresh",
 			glyph = "refresh",
 			variant = "default",
 			tooltip = noctalia.tr("refresh"),
@@ -151,6 +159,7 @@ function PickerPanel:tabBar(): UiNode
 		table.insert(
 			children,
 			ui.button({
+				key = "close",
 				glyph = "close",
 				variant = "default",
 				tooltip = noctalia.tr("close"),
@@ -178,6 +187,7 @@ end
 function PickerPanel:paletteTabs(): UiNode
 	local children = {
 		ui.button({
+			key = "palette-back",
 			glyph = "arrow-left",
 			variant = "default",
 			tooltip = noctalia.tr("back"),
@@ -193,6 +203,7 @@ function PickerPanel:paletteTabs(): UiNode
 			table.insert(
 				children,
 				ui.button({
+					key = "palette-source:" .. source,
 					text = group.title,
 					variant = activeVariant(self.view.paletteSource == source),
 					onClick = function()
