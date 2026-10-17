@@ -7,8 +7,7 @@
   "close": "Close",
   "favorite": {
     "add": "Add to favorites",
-    "remove": "Remove from favorites",
-    "unavailable": "No wallpaper on this output"
+    "remove": "Remove from favorites"
   },
   "image": {
     "empty": "No wallpapers found in the configured directory"
@@ -82,12 +81,7 @@
       "label": "Video Directory"
     }
   },
-  "sort": {
-    "change": "Change sort order",
-    "name": "Name A–Z",
-    "name_desc": "Name Z–A",
-    "random": "Random"
-  },
+  "sort": "Change sort order",
   "stop": "Stop",
   "tab": {
     "images": "Images",

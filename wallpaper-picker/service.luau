@@ -1,20 +1,37 @@
---!strict
+--!nonstrict
+-- Wallpaper Picker - headless video wallpaper service.
+--
+-- Supervises one `mpvpaper` instance per output (driven through the shared
+-- "command" state channel) and asks the host to drop its own wallpaper surface
+-- on assigned outputs so the video shows through. There is no slideshow here;
+-- the picker only starts single videos and can pause/resume/stop them.
+--
+-- Favorites and image handling live in the panel. This service only owns the
+-- video process lifecycle and publishes its state for the picker.
 
 noctalia.setUpdateInterval(1000)
 
+-- ==============================================================================
+-- ── PATHS AND STATE ────────────────────────────────────────────────────────
+-- ==============================================================================
+
+local CACHE_DIR = (noctalia.getenv("XDG_CACHE_HOME") or ((noctalia.getenv("HOME") or "") .. "/.cache"))
+	.. "/noctalia/wallpaper-picker"
 local STATE_DIR = (noctalia.getenv("XDG_STATE_HOME") or ((noctalia.getenv("HOME") or "") .. "/.local/state"))
 	.. "/noctalia/wallpaper-picker"
 local STATE_FILE = STATE_DIR .. "/assignments.json"
 
-local assignments = {}
-local lastAssignments = {}
-local launchedAsSystemd = {}
-local lastPresent = {}
-local isPaused = {}
-local generation = {}
-local transitionEpoch = 0
-local available = false
+local assignments = {} -- connector -> video path ("*" for all outputs)
+local lastAssignments = {} -- connector -> path last applied (feeds IPC "reapply")
+local launchedAsSystemd = {} -- connector -> boolean
+local lastPresent = {} -- connector -> true (monitors seen last tick)
+local isPaused = {} -- connector -> true (paused outputs)
+local available = false -- is mpvpaper installed?
 local mpvpaperSupportsAutoMode = false
+
+-- ==============================================================================
+-- ── HELPERS ────────────────────────────────────────────────────────────────
+-- ==============================================================================
 
 local function cfg(key)
 	return noctalia.getConfig(key)
@@ -24,20 +41,15 @@ local function shellQuote(s)
 	return "'" .. tostring(s):gsub("'", "'\\''") .. "'"
 end
 
-local function unitNameFor(connector: string)
+local function unitNameFor(connector)
 	if connector == "*" then
 		return "mpvpaper.scope"
 	end
 	return "mpvpaper-" .. connector:gsub("[^%w%-]", "_") .. ".scope"
 end
 
-local function nextGeneration(connector: string): number
-	local value = (generation[connector] or 0) + 1
-	generation[connector] = value
-	return value
-end
-
-local function pkillPattern(connector: string)
+-- Matches only the exact connector (prevents DP-1 matching DP-10/DP-11).
+local function pkillPattern(connector)
 	local escaped = connector:gsub("([%.%*%+%?%(%)%[%]%^%$|\\{}])", "\\%1")
 	return shellQuote("(^|/)mpvpaper .* " .. escaped .. " ")
 end
@@ -51,6 +63,10 @@ local function forEachOutput(connector, fn)
 		fn(connector)
 	end
 end
+
+-- ==============================================================================
+-- ── STATE PERSISTENCE ──────────────────────────────────────────────────────
+-- ==============================================================================
 
 local function persist()
 	noctalia.runAsync("mkdir -p " .. shellQuote(STATE_DIR))
@@ -82,6 +98,10 @@ local function publish()
 	noctalia.state.set("available", available)
 	noctalia.state.set("paused", isPaused)
 end
+
+-- ==============================================================================
+-- ── COMMAND BUILDERS ───────────────────────────────────────────────────────
+-- ==============================================================================
 
 local function mpvOptions()
 	local parts = { "loop-file=inf", "panscan=1.0" }
@@ -163,14 +183,28 @@ local function systemdProperties()
 	return props
 end
 
-local function killMpvpaper(connector: string, callback: ((CommandResult) -> ())?)
+-- ==============================================================================
+-- ── PROCESS MANAGEMENT ─────────────────────────────────────────────────────
+-- ==============================================================================
+
+local function killMpvpaper(connector, callback, signal)
+	local sig = (type(signal) == "number" and signal > 0) and signal or 15
 	local killCmd
 	local pattern = pkillPattern(connector)
 	if launchedAsSystemd[connector] then
 		local unitName = unitNameFor(connector)
-		killCmd = "systemctl --user stop " .. shellQuote(unitName)
+		if isPaused[connector] then
+			killCmd = "systemctl --user thaw "
+				.. shellQuote(unitName)
+				.. " ; systemctl --user stop "
+				.. shellQuote(unitName)
+		else
+			killCmd = "systemctl --user stop " .. shellQuote(unitName)
+		end
+	elseif isPaused[connector] then
+		killCmd = "pkill -CONT -f -- " .. pattern .. " ; pkill -" .. sig .. " -f -- " .. pattern
 	else
-		killCmd = "pkill -A -KILL -f -- " .. pattern .. " 2>/dev/null; true"
+		killCmd = "pkill -" .. sig .. " -f -- " .. pattern
 	end
 
 	isPaused[connector] = false
@@ -183,11 +217,7 @@ local function killMpvpaper(connector: string, callback: ((CommandResult) -> ())
 end
 
 local function startMpvpaper(connector, path)
-	local ticket = nextGeneration(connector)
 	killMpvpaper(connector, function()
-		if generation[connector] ~= ticket or assignments[connector] ~= path then
-			return
-		end
 		launchedAsSystemd[connector] = cfg("run_as_systemd")
 		persist()
 
@@ -214,9 +244,6 @@ local function startMpvpaper(connector, path)
 
 		noctalia.runAsync("exec " .. cmd .. " >/dev/null 2>&1 &", function() end)
 		noctalia.runAsync("sleep 0.8", function()
-			if generation[connector] ~= ticket or assignments[connector] ~= path then
-				return
-			end
 			forEachOutput(connector, function(name)
 				noctalia.setWallpaperEnabled(name, false)
 			end)
@@ -224,12 +251,16 @@ local function startMpvpaper(connector, path)
 	end)
 end
 
+-- ==============================================================================
+-- ── PAUSE / RESUME / TOGGLE ────────────────────────────────────────────────
+-- ==============================================================================
+
 local function freezeMpvpaper(connector)
 	isPaused[connector] = true
 	if cfg("run_as_systemd") then
 		noctalia.runAsync("systemctl --user freeze " .. shellQuote(unitNameFor(connector)))
 	else
-		noctalia.runAsync("pkill -A -STOP -f -- " .. pkillPattern(connector))
+		noctalia.runAsync("pkill -STOP -f -- " .. pkillPattern(connector))
 	end
 end
 
@@ -238,7 +269,7 @@ local function thawMpvpaper(connector)
 	if cfg("run_as_systemd") then
 		noctalia.runAsync("systemctl --user thaw " .. shellQuote(unitNameFor(connector)))
 	else
-		noctalia.runAsync("pkill -A -CONT -f -- " .. pkillPattern(connector))
+		noctalia.runAsync("pkill -CONT -f -- " .. pkillPattern(connector))
 	end
 end
 
@@ -250,6 +281,10 @@ local function toggleMpvpaper(connector)
 	end
 end
 
+-- ==============================================================================
+-- ── CORE ASSIGNMENT LOGIC ──────────────────────────────────────────────────
+-- ==============================================================================
+
 local function snapshotAssignments()
 	if next(assignments) == nil then
 		return
@@ -260,6 +295,8 @@ local function snapshotAssignments()
 	end
 end
 
+-- Clears an assigned video and restores the host wallpaper (the image the host
+-- still has configured, so "stop" reveals the previous image).
 local function clearVideo(connector)
 	if type(connector) ~= "string" or connector == "" then
 		return
@@ -267,74 +304,35 @@ local function clearVideo(connector)
 
 	snapshotAssignments()
 	assignments[connector] = nil
-	local ticket = nextGeneration(connector)
 	persist()
 
 	killMpvpaper(connector, function()
-		if generation[connector] ~= ticket then
-			return
-		end
 		forEachOutput(connector, function(name)
-			if not assignments["*"] and not assignments[name] then
-				noctalia.setWallpaperEnabled(name, true)
-			end
+			noctalia.setWallpaperEnabled(name, true)
 		end)
 	end)
 
 	publish()
 end
 
-local function clearAll(restoreWallpaper: boolean?)
-	transitionEpoch += 1
-	local epoch = transitionEpoch
+local function clearAll()
 	snapshotAssignments()
-	local targets = {}
 	for connector in pairs(assignments) do
-		targets[connector] = true
-	end
-	for connector in pairs(lastAssignments) do
-		targets[connector] = true
-	end
-	for connector in pairs(generation) do
-		targets[connector] = true
+		killMpvpaper(connector, function()
+			forEachOutput(connector, function(name)
+				noctalia.setWallpaperEnabled(name, true)
+			end)
+		end)
 	end
 	assignments = {}
 	persist()
 	publish()
-	local remaining = 0
-	for _ in pairs(targets) do
-		remaining += 1
-	end
-	local function finish()
-		if epoch ~= transitionEpoch then
-			return
-		end
-		if restoreWallpaper ~= false then
-			for _, output in ipairs(noctalia.outputs()) do
-				noctalia.setWallpaperEnabled(output.name, true)
-			end
-		end
-	end
-	if remaining == 0 then
-		finish()
-		return
-	end
-	for connector in pairs(targets) do
-		nextGeneration(connector)
-		killMpvpaper(connector, function()
-			remaining -= 1
-			if remaining == 0 then
-				finish()
-			end
-		end)
-	end
 end
 
 local function setVideo(connector, path)
 	if not available or type(connector) ~= "string" or connector == "" or type(path) ~= "string" or path == "" then
 		return
 	end
-	transitionEpoch += 1
 
 	if connector == "*" then
 		for conn in pairs(assignments) do
@@ -355,6 +353,10 @@ local function setVideo(connector, path)
 	publish()
 end
 
+-- ==============================================================================
+-- ── LIFECYCLE ──────────────────────────────────────────────────────────────
+-- ==============================================================================
+
 local function presentOutputs()
 	local present = {}
 	for _, output in ipairs(noctalia.outputs()) do
@@ -369,7 +371,9 @@ local function applyAll()
 	end
 end
 
-function update() end
+function update()
+	-- The service is event-driven; nothing to poll without a slideshow.
+end
 
 function onOutputsChanged()
 	if not available then
@@ -399,15 +403,19 @@ function onOutputsChanged()
 	lastPresent = present
 end
 
-function onExit(_signal)
+function onExit(signal)
 	for connector in pairs(assignments) do
-		killMpvpaper(connector, nil)
+		killMpvpaper(connector, nil, signal)
 	end
 end
 
 function onConfigChanged(_key, _value)
 	applyAll()
 end
+
+-- ==============================================================================
+-- ── IPC (COMMUNICATION WITH PANEL) ─────────────────────────────────────────
+-- ==============================================================================
 
 function onIpc(event, payload)
 	if event == "clear-all" then
@@ -468,8 +476,6 @@ noctalia.state.watch("command", function(cmd)
 		clearVideo(cmd.connector)
 	elseif cmd.action == "clear-all" then
 		clearAll()
-	elseif cmd.action == "clear-for-image" then
-		clearAll(false)
 	elseif cmd.action == "freeze" then
 		onIpc("freeze", cmd.connector)
 	elseif cmd.action == "thaw" then
@@ -478,6 +484,10 @@ noctalia.state.watch("command", function(cmd)
 		onIpc("toggle", cmd.connector)
 	end
 end)
+
+-- ==============================================================================
+-- ── BOOT ───────────────────────────────────────────────────────────────────
+-- ==============================================================================
 
 noctalia.runAsync("mkdir -p " .. shellQuote(STATE_DIR))
 loadAssignments()

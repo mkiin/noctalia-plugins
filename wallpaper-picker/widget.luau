@@ -1,4 +1,5 @@
---!strict
+--!nonstrict
+-- Bar widget that opens the wallpaper picker.
 
 local glyph = noctalia.getConfig("glyph") or "photo"
 

@@ -2,14 +2,13 @@
 
 A unified image + video wallpaper picker that recreates Noctalia v4's local
 wallpaper panel. The **Images** tab browses a folder of wallpapers with a
-thumbnail grid, search, sort, subfolder navigation and favorites; the
+thumbnail grid, search, sort, subfolder navigation and per-image favorites; the
 **Video** tab drives [`mpvpaper`](https://github.com/GhostNaN/mpvpaper) through a
 headless service with the same grid, favorites, and pause / resume / stop.
 
-The single star in the header favorites the wallpaper currently applied to the
-selected output. Favorites snapshot the active theme palette, show a distinct
-thumbnail border and four accent dots below the thumbnail. Applying a favorited
-wallpaper restores both the wallpaper and its saved palette.
+Favorites snapshot the active theme palette when you star them (shown as four
+accent dots), and applying a favorited wallpaper restores both the wallpaper and
+the palette it was saved with.
 
 ## Plugin
 
@@ -35,8 +34,7 @@ original images are shown directly.
   ```
 
 - **Images** tab: click a thumbnail to set it as the wallpaper. Click a folder
-  to drill in; the labeled up button appears inside a subfolder. Use the header
-  star to favorite the current wallpaper.
+  to drill in, use the back arrow to go up. Star a tile to favorite it.
 - **Video** tab: click a thumbnail to start it on the selected output. Pause /
   resume / stop act on the selected output (or all outputs).
 - The palette button switches to a grid of built-in, community and custom
