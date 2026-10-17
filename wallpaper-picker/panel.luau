@@ -15,6 +15,7 @@ local GRID_GAP = 12
 local GRID_INSET = 8
 local GRID_ROW_GAP = GRID_INSET
 local TILE_RADIUS = 12
+local TILE_BORDER_WIDTH = 2
 local CONTENT_WIDTH = PANEL_WIDTH - PANEL_PADDING * 2 - 16
 local TILE_IMAGE_H = math.floor(((CONTENT_WIDTH - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS) * 0.72)
 local TILE_INNER_GAP = 6
@@ -379,7 +380,7 @@ function PickerPanel:imageTile(item: ImageEntry): UiNode
 			fill = "surface_variant",
 			radius = TILE_RADIUS,
 			border = "outline",
-			borderWidth = 1,
+			borderWidth = TILE_BORDER_WIDTH,
 			align = "center",
 			justify = "center",
 			tooltip = item.path,
@@ -414,24 +415,24 @@ function PickerPanel:mediaTile(kind: string, path: string, name: string): UiNode
 	local image: UiNode
 	if preview then
 		image = ui.image({
-			key = "preview:" .. path .. ":" .. border,
+			key = "preview:" .. path,
 			path = preview,
 			height = TILE_IMAGE_H,
 			fit = "cover",
 			radius = TILE_RADIUS,
 			border = border,
-			borderWidth = if selected or favorite then 2 else 1,
+			borderWidth = TILE_BORDER_WIDTH,
 			tooltip = name,
 			onClick = action,
 		})
 	else
 		image = ui.column({
-			key = "placeholder:" .. path .. ":" .. border,
+			key = "placeholder:" .. path,
 			height = TILE_IMAGE_H,
 			fill = "surface_variant",
 			radius = TILE_RADIUS,
 			border = border,
-			borderWidth = if selected or favorite then 2 else 1,
+			borderWidth = TILE_BORDER_WIDTH,
 			align = "center",
 			justify = "center",
 			tooltip = name,
