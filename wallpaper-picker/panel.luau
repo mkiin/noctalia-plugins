@@ -12,6 +12,8 @@ local PANEL_WIDTH = 1000
 local PANEL_PADDING = 24
 local GRID_COLUMNS = 4
 local GRID_GAP = 12
+local GRID_INSET = 8
+local GRID_ROW_GAP = GRID_INSET
 local TILE_RADIUS = 12
 local CONTENT_WIDTH = PANEL_WIDTH - PANEL_PADDING * 2 - 16
 local TILE_IMAGE_H = math.floor(((CONTENT_WIDTH - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS) * 0.72)
@@ -30,7 +32,7 @@ local function tileHeight(): number
 end
 
 local function viewportHeight(): number
-	return tileHeight() * VIEWPORT_ROWS + GRID_GAP
+	return GRID_INSET + VIEWPORT_ROWS * (tileHeight() + GRID_ROW_GAP)
 end
 
 local function activeVariant(selected: boolean): "primary" | "outline"
@@ -64,7 +66,7 @@ local function grid<T>(items: { T }, columns: number, nodeFor: (T) -> UiNode): U
 			row = {}
 		end
 	end
-	return ui.column({ gap = GRID_GAP, align = "stretch" }, rows)
+	return ui.column({ gap = GRID_ROW_GAP, align = "stretch" }, rows)
 end
 
 local function emptyState(glyph: string, message: string): UiNode
