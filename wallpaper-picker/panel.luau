@@ -184,7 +184,7 @@ function PickerPanel:paletteRow(item: PaletteItem): UiNode
 	local selected = self.view.currentSource == item.source and self.view.currentScheme == item.name
 	local key = "pal:" .. item.source .. ":" .. item.name
 	local hovered = self.view.paletteHover == key
-	local fill: string? = if selected then "primary/0.16" else if hovered then "hover" else nil
+	local fill = if selected then "primary/0.16" else if hovered then "hover" else "#00000000"
 	local color = if hovered then "on_hover" else "on_surface"
 	return ui.row({
 		key = key,
