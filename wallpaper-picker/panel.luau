@@ -87,11 +87,31 @@ function PickerPanel.new()
 end
 
 function PickerPanel:header(): UiNode
+	return ui.row({ gap = 8, align = "center" }, {
+		ui.glyph({ name = "photo", size = 20, color = "primary" }),
+		ui.label({ text = noctalia.tr("title"), fontSize = 16, fontWeight = "bold" }),
+	})
+end
+
+function PickerPanel:tabBar(): UiNode
 	local view = self.view
 	local isFavorite = view.isFavorite
 	local children = {
-		ui.glyph({ name = "photo", size = 20, color = "primary" }),
-		ui.label({ text = noctalia.tr("title"), fontSize = 16, fontWeight = "bold", flexGrow = 1 }),
+		ui.button({
+			text = noctalia.tr("tab.images"),
+			variant = activeVariant(view.tab == "images"),
+			onClick = function()
+				self.coordinator:dispatch("select-tab", "images")
+			end,
+		}),
+		ui.button({
+			text = noctalia.tr("tab.video"),
+			variant = activeVariant(view.tab == "video"),
+			onClick = function()
+				self.coordinator:dispatch("select-tab", "video")
+			end,
+		}),
+		ui.spacer({ flexGrow = 1 }),
 		ui.button({
 			key = "favorite-wallpaper",
 			glyph = if isFavorite then "star-filled" else "star",
@@ -143,25 +163,6 @@ function PickerPanel:header(): UiNode
 		)
 	end
 	return ui.row({ gap = 8, align = "center" }, children)
-end
-
-function PickerPanel:tabBar(): UiNode
-	return ui.row({ gap = 8, align = "center" }, {
-		ui.button({
-			text = noctalia.tr("tab.images"),
-			variant = activeVariant(self.view.tab == "images"),
-			onClick = function()
-				self.coordinator:dispatch("select-tab", "images")
-			end,
-		}),
-		ui.button({
-			text = noctalia.tr("tab.video"),
-			variant = activeVariant(self.view.tab == "video"),
-			onClick = function()
-				self.coordinator:dispatch("select-tab", "video")
-			end,
-		}),
-	})
 end
 
 function PickerPanel:monitorSelect(): UiNode
@@ -316,9 +317,10 @@ function PickerPanel:videoTile(item: VideoEntry): UiNode
 end
 
 function PickerPanel:mediaTile(kind: string, path: string, name: string): UiNode
+	local selected = self.view.selectedKind == kind and self.view.selectedPath == path
 	local favorite = self.coordinator:favorite(kind, path)
 	local preview = self.coordinator:thumbnail(path)
-	local border = if favorite then "tertiary" else "outline"
+	local border = if selected then "primary" else if favorite then "tertiary" else "outline"
 	local action = function()
 		self.coordinator:dispatch(if kind == "video" then "apply-video" else "apply-image", path)
 	end
@@ -331,7 +333,7 @@ function PickerPanel:mediaTile(kind: string, path: string, name: string): UiNode
 			fit = "cover",
 			radius = TILE_RADIUS,
 			border = border,
-			borderWidth = if favorite then 2 else 1,
+			borderWidth = if selected or favorite then 2 else 1,
 			tooltip = name,
 			onClick = action,
 		})
@@ -342,7 +344,7 @@ function PickerPanel:mediaTile(kind: string, path: string, name: string): UiNode
 			fill = "surface_variant",
 			radius = TILE_RADIUS,
 			border = border,
-			borderWidth = if favorite then 2 else 1,
+			borderWidth = if selected or favorite then 2 else 1,
 			align = "center",
 			justify = "center",
 			tooltip = name,
