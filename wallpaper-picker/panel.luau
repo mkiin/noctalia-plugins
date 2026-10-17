@@ -17,7 +17,8 @@ local GRID_ROW_GAP = GRID_INSET
 local TILE_RADIUS = 12
 local TILE_BORDER_WIDTH = 1
 local CONTENT_WIDTH = PANEL_WIDTH - PANEL_PADDING * 2 - 16
-local TILE_IMAGE_H = math.floor(((CONTENT_WIDTH - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS) * 0.72)
+local TILE_WIDTH = (CONTENT_WIDTH - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS
+local TILE_IMAGE_H = math.floor(TILE_WIDTH * 0.72)
 local TILE_INNER_GAP = 6
 local NAME_H = 22
 local VIEWPORT_ROWS = 2
@@ -63,7 +64,7 @@ local function grid<T>(items: { T }, columns: number, nodeFor: (T) -> UiNode): U
 			for _ = #row + 1, columns do
 				table.insert(row, ui.spacer({ flexGrow = 1 }))
 			end
-			table.insert(rows, ui.row({ gap = GRID_GAP, align = "stretch" }, row))
+			table.insert(rows, ui.row({ gap = GRID_GAP, align = "stretch", justify = "center" }, row))
 			row = {}
 		end
 	end
@@ -376,6 +377,7 @@ end
 function PickerPanel:imageTile(item: ImageEntry): UiNode
 	if item.isDir then
 		local directory = ui.column({
+			width = TILE_WIDTH,
 			height = TILE_IMAGE_H,
 			fill = "surface_variant",
 			radius = TILE_RADIUS,
@@ -393,7 +395,7 @@ function PickerPanel:imageTile(item: ImageEntry): UiNode
 			table.insert(children, ui.label({ text = item.name, fontSize = 12, color = "on_surface", maxLines = 1 }))
 		end
 		return ui.column(
-			{ key = "dir:" .. item.path, flexGrow = 1, height = tileHeight(), gap = TILE_INNER_GAP },
+			{ key = "dir:" .. item.path, width = TILE_WIDTH, height = tileHeight(), gap = TILE_INNER_GAP },
 			children
 		)
 	end
@@ -417,6 +419,7 @@ function PickerPanel:mediaTile(kind: string, path: string, name: string): UiNode
 		image = ui.image({
 			key = "preview:" .. path,
 			path = preview,
+			width = TILE_WIDTH,
 			height = TILE_IMAGE_H,
 			fit = "cover",
 			radius = TILE_RADIUS,
@@ -428,6 +431,7 @@ function PickerPanel:mediaTile(kind: string, path: string, name: string): UiNode
 	else
 		image = ui.column({
 			key = "placeholder:" .. path,
+			width = TILE_WIDTH,
 			height = TILE_IMAGE_H,
 			fill = "surface_variant",
 			radius = TILE_RADIUS,
@@ -461,7 +465,10 @@ function PickerPanel:mediaTile(kind: string, path: string, name: string): UiNode
 		end
 		table.insert(children, ui.row({ gap = 6, align = "center" }, labels))
 	end
-	return ui.column({ key = "tile:" .. path, flexGrow = 1, height = tileHeight(), gap = TILE_INNER_GAP }, children)
+	return ui.column(
+		{ key = "tile:" .. path, width = TILE_WIDTH, height = tileHeight(), gap = TILE_INNER_GAP },
+		children
+	)
 end
 
 function PickerPanel:content(): UiNode
