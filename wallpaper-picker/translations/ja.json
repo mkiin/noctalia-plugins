@@ -5,17 +5,16 @@
     "up": "Up one folder"
   },
   "close": "Close",
-  "current": "Current",
   "favorite": {
     "add": "Add to favorites",
-    "remove": "Remove from favorites"
+    "remove": "Remove from favorites",
+    "unavailable": "No wallpaper on this output"
   },
   "image": {
     "empty": "No wallpapers found in the configured directory"
   },
   "loading": "Loading…",
   "no_match": "No matches",
-  "no_selection": "No wallpaper selected",
   "palette": {
     "builtin": "Built-in",
     "community": "Community",

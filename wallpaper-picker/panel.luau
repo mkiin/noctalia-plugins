@@ -88,29 +88,18 @@ end
 
 function PickerPanel:header(): UiNode
 	local view = self.view
-	local kind, path = view.selectedKind, view.selectedPath
-	local selectedName: string? = path and (path:match("[^/]+$") or path)
 	local isFavorite = view.isFavorite
 	local children = {
 		ui.glyph({ name = "photo", size = 20, color = "primary" }),
 		ui.label({ text = noctalia.tr("title"), fontSize = 16, fontWeight = "bold", flexGrow = 1 }),
-		ui.label({
-			text = selectedName and (noctalia.tr("current") .. ": " .. selectedName) or noctalia.tr("no_selection"),
-			fontSize = 12,
-			maxWidth = 245,
-			maxLines = 1,
-			color = "on_surface_variant",
-		}),
 		ui.button({
-			key = "favorite-current",
+			key = "favorite-wallpaper",
 			glyph = if isFavorite then "star-filled" else "star",
 			variant = if isFavorite then "primary" else "default",
-			enabled = kind ~= nil and path ~= nil,
-			tooltip = if not selectedName
-				then noctalia.tr("no_selection")
-				else (if isFavorite then noctalia.tr("favorite.remove") else noctalia.tr("favorite.add"))
-					.. ": "
-					.. selectedName,
+			enabled = view.hasWallpaper,
+			tooltip = if not view.hasWallpaper
+				then noctalia.tr("favorite.unavailable")
+				else if isFavorite then noctalia.tr("favorite.remove") else noctalia.tr("favorite.add"),
 			onClick = function()
 				self.coordinator:dispatch("toggle-favorite")
 			end,
@@ -327,10 +316,9 @@ function PickerPanel:videoTile(item: VideoEntry): UiNode
 end
 
 function PickerPanel:mediaTile(kind: string, path: string, name: string): UiNode
-	local selected = self.view.selectedKind == kind and self.view.selectedPath == path
 	local favorite = self.coordinator:favorite(kind, path)
 	local preview = self.coordinator:thumbnail(path)
-	local border = if favorite then "tertiary" else if selected then "primary" else "outline"
+	local border = if favorite then "tertiary" else "outline"
 	local action = function()
 		self.coordinator:dispatch(if kind == "video" then "apply-video" else "apply-image", path)
 	end
@@ -343,7 +331,7 @@ function PickerPanel:mediaTile(kind: string, path: string, name: string): UiNode
 			fit = "cover",
 			radius = TILE_RADIUS,
 			border = border,
-			borderWidth = if selected or favorite then 2 else 1,
+			borderWidth = if favorite then 2 else 1,
 			tooltip = name,
 			onClick = action,
 		})
@@ -354,7 +342,7 @@ function PickerPanel:mediaTile(kind: string, path: string, name: string): UiNode
 			fill = "surface_variant",
 			radius = TILE_RADIUS,
 			border = border,
-			borderWidth = if selected or favorite then 2 else 1,
+			borderWidth = if favorite then 2 else 1,
 			align = "center",
 			justify = "center",
 			tooltip = name,
@@ -377,9 +365,6 @@ function PickerPanel:mediaTile(kind: string, path: string, name: string): UiNode
 			)
 		else
 			table.insert(labels, ui.spacer({ flexGrow = 1 }))
-		end
-		if selected then
-			table.insert(labels, ui.label({ text = noctalia.tr("current"), fontSize = 11, color = "primary" }))
 		end
 		if favorite then
 			table.insert(labels, paletteDots(favorite.palette, 12))
