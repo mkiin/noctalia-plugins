@@ -27,18 +27,22 @@ local TILE_RADIUS = 12
 local CONTENT_WIDTH = PANEL_WIDTH - PANEL_PADDING * 2 - 16 -- slack for the scrollbar
 local TILE_IMAGE_H = math.floor(((CONTENT_WIDTH - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS) * 0.62)
 local TILE_INNER_GAP = 4
-local ACTION_H = 32 -- sm control tier
-local NAME_H = 14
+local ACTION_H = 34
+local NAME_H = 16
 local VIEWPORT_ROWS = 2
 
--- Height of the grid viewport: exactly VIEWPORT_ROWS rows, so anything beyond
--- is clipped and only reachable by scrolling.
-local function viewportHeight()
-	local rowH = TILE_IMAGE_H + TILE_INNER_GAP + ACTION_H
+-- Tile height is fixed so each row is deterministic and the viewport can be
+-- sized to exactly VIEWPORT_ROWS rows (nothing beyond is shown).
+local function tileHeight()
+	local h = TILE_IMAGE_H + TILE_INNER_GAP + ACTION_H
 	if noctalia.getConfig("show_names") ~= false then
-		rowH = rowH + TILE_INNER_GAP + NAME_H
+		h = h + TILE_INNER_GAP + NAME_H
 	end
-	return rowH * VIEWPORT_ROWS + GRID_GAP
+	return h
+end
+
+local function viewportHeight()
+	return tileHeight() * VIEWPORT_ROWS + GRID_GAP
 end
 
 local CACHE_DIR = (noctalia.getenv("XDG_CACHE_HOME") or ((noctalia.getenv("HOME") or "") .. "/.cache"))
@@ -70,10 +74,12 @@ local thumbs = {} -- src path -> ready thumbnail path
 local thumbPending = {} -- src path -> true while generating
 local thumbQueue = {}
 local thumbActive = 0
+local lastThumbRender = 0 -- throttle re-renders while thumbnails trickle in
 
 local favorites = { images = {}, videos = {} }
 
 local paletteGroups = nil
+local paletteSource = "builtin" -- builtin | community | custom
 local currentSource = nil
 local currentScheme = nil
 
@@ -274,7 +280,7 @@ local function buildPaletteGroups()
 			surface = m[5],
 		})
 	end
-	table.insert(groups, { title = noctalia.tr("palette.builtin"), items = builtinItems })
+	table.insert(groups, { source = "builtin", title = noctalia.tr("palette.builtin"), items = builtinItems })
 
 	-- Community: read the cached catalog (array, or { palettes = [...] }).
 	local communityItems = {}
@@ -302,7 +308,7 @@ local function buildPaletteGroups()
 		table.sort(communityItems, function(a, b)
 			return a.name:lower() < b.name:lower()
 		end)
-		table.insert(groups, { title = noctalia.tr("palette.community"), items = communityItems })
+		table.insert(groups, { source = "community", title = noctalia.tr("palette.community"), items = communityItems })
 	end
 
 	-- Custom: ~/.config/noctalia/palettes/*.json (one palette per file).
@@ -330,10 +336,26 @@ local function buildPaletteGroups()
 		table.sort(customItems, function(a, b)
 			return a.name:lower() < b.name:lower()
 		end)
-		table.insert(groups, { title = noctalia.tr("palette.custom"), items = customItems })
+		table.insert(groups, { source = "custom", title = noctalia.tr("palette.custom"), items = customItems })
 	end
 
 	paletteGroups = groups
+
+	-- Keep the selected sub-tab on a source that actually has palettes.
+	local valid = false
+	for _, group in ipairs(groups) do
+		if group.source == paletteSource and #group.items > 0 then
+			valid = true
+		end
+	end
+	if not valid then
+		for _, group in ipairs(groups) do
+			if #group.items > 0 then
+				paletteSource = group.source
+				break
+			end
+		end
+	end
 end
 
 -- ── Thumbnails ──────────────────────────────────────────────────────────────
@@ -374,9 +396,17 @@ local function pumpThumbQueue()
 				thumbPending[src] = nil
 				if noctalia.fileExists(dest) then
 					thumbs[src] = dest
-					render()
 				end
 				pumpThumbQueue()
+				if thumbActive == 0 and #thumbQueue == 0 then
+					render()
+				else
+					local now = noctalia.nowMs()
+					if now - lastThumbRender >= 150 then
+						lastThumbRender = now
+						render()
+					end
+				end
 			end, 30000)
 		end
 	end
@@ -384,6 +414,11 @@ end
 
 local function queueThumb(path, kind)
 	if thumbs[path] ~= nil or thumbPending[path] then
+		return
+	end
+	local cached = thumbCachePath(path)
+	if noctalia.fileExists(cached) then
+		thumbs[path] = cached
 		return
 	end
 	table.insert(thumbQueue, { path = path, kind = kind })
@@ -599,53 +634,77 @@ end
 
 local function imageTile(item)
 	if item.isDir then
-		return ui.column({ key = "dir:" .. item.path, flexGrow = 1, gap = 4, align = "stretch" }, {
-			ui.box({
-				height = TILE_IMAGE_H,
-				fill = "surface_variant",
-				radius = TILE_RADIUS,
-				border = "outline",
-				borderWidth = 1,
-				onClick = function()
-					browseDir = item.path
-					scanImages()
-				end,
-			}),
-			ui.label({
-				text = item.name,
-				fontSize = 11,
-				maxLines = 1,
-				color = "on_surface_variant",
-				textAlign = "center",
-			}),
-		})
+		return ui.column(
+			{ key = "dir:" .. item.path, flexGrow = 1, height = tileHeight(), gap = TILE_INNER_GAP, align = "stretch" },
+			{
+				ui.box({
+					height = TILE_IMAGE_H,
+					fill = "surface_variant",
+					radius = TILE_RADIUS,
+					border = "outline",
+					borderWidth = 1,
+					onClick = function()
+						browseDir = item.path
+						scanImages()
+					end,
+				}),
+				ui.label({
+					text = item.name,
+					fontSize = 11,
+					maxLines = 1,
+					color = "on_surface_variant",
+					textAlign = "center",
+				}),
+			}
+		)
 	end
 
 	local fav = favorites.images[item.path]
 	local children = {}
-	table.insert(
-		children,
-		ui.image({
-			key = "img:" .. item.path,
-			path = thumbs[item.path] or item.path,
-			height = TILE_IMAGE_H,
-			fit = "cover",
-			radius = TILE_RADIUS,
-			border = fav and "primary" or "outline",
-			borderWidth = fav and 2 or 1,
-			tooltip = item.name,
-			onClick = function()
-				applyImage(item.path)
-			end,
-		})
-	)
+	local thumb = thumbs[item.path]
+	if thumb then
+		table.insert(
+			children,
+			ui.image({
+				key = "img:" .. item.path,
+				path = thumb,
+				height = TILE_IMAGE_H,
+				fit = "cover",
+				radius = TILE_RADIUS,
+				border = fav and "primary" or "outline",
+				borderWidth = fav and 2 or 1,
+				tooltip = item.name,
+				onClick = function()
+					applyImage(item.path)
+				end,
+			})
+		)
+	else
+		-- Render a cheap placeholder until the thumbnail is ready. Never load the
+		-- original here: decoding full-resolution wallpapers stalls the renderer.
+		table.insert(
+			children,
+			ui.box({
+				key = "ph:" .. item.path,
+				height = TILE_IMAGE_H,
+				fill = "surface_variant",
+				radius = TILE_RADIUS,
+				border = fav and "primary" or "outline",
+				borderWidth = fav and 2 or 1,
+				tooltip = item.name,
+				onClick = function()
+					applyImage(item.path)
+				end,
+			})
+		)
+	end
 	table.insert(
 		children,
 		ui.row({ gap = 4, align = "center" }, {
 			ui.button({
 				key = "star:" .. item.path,
 				glyph = fav and "star-filled" or "star",
-				variant = "ghost",
+				variant = "default",
 				controlSize = "sm",
 				tooltip = fav and noctalia.tr("favorite.remove") or noctalia.tr("favorite.add"),
 				onClick = function()
@@ -668,7 +727,10 @@ local function imageTile(item)
 			})
 		)
 	end
-	return ui.column({ key = "tile:" .. item.path, flexGrow = 1, gap = 4, align = "stretch" }, children)
+	return ui.column(
+		{ key = "tile:" .. item.path, flexGrow = 1, height = tileHeight(), gap = TILE_INNER_GAP, align = "stretch" },
+		children
+	)
 end
 
 local function videoTile(item)
@@ -714,7 +776,7 @@ local function videoTile(item)
 			ui.button({
 				key = "vstar:" .. item.path,
 				glyph = fav and "star-filled" or "star",
-				variant = "ghost",
+				variant = "default",
 				controlSize = "sm",
 				tooltip = fav and noctalia.tr("favorite.remove") or noctalia.tr("favorite.add"),
 				onClick = function()
@@ -737,7 +799,10 @@ local function videoTile(item)
 			})
 		)
 	end
-	return ui.column({ key = "vtile:" .. item.path, flexGrow = 1, gap = 4, align = "stretch" }, children)
+	return ui.column(
+		{ key = "vtile:" .. item.path, flexGrow = 1, height = tileHeight(), gap = TILE_INNER_GAP, align = "stretch" },
+		children
+	)
 end
 
 local function paletteCard(item)
@@ -769,13 +834,13 @@ local function header()
 		ui.label({ text = noctalia.tr("title"), fontSize = 16, fontWeight = "bold", flexGrow = 1 }),
 		ui.button({
 			glyph = isDark() and "moon" or "sun",
-			variant = "ghost",
+			variant = "default",
 			tooltip = noctalia.tr("theme-mode"),
 			onClick = toggleThemeMode,
 		}),
 		ui.button({
 			glyph = "palette",
-			variant = showPalette and "primary" or "ghost",
+			variant = showPalette and "primary" or "default",
 			tooltip = noctalia.tr("palette.title"),
 			onClick = function()
 				showPalette = not showPalette
@@ -787,7 +852,7 @@ local function header()
 		}),
 		ui.button({
 			glyph = "refresh",
-			variant = "ghost",
+			variant = "default",
 			tooltip = noctalia.tr("refresh"),
 			onClick = function()
 				paletteGroups = nil
@@ -804,7 +869,7 @@ local function header()
 			children,
 			ui.button({
 				glyph = "close",
-				variant = "ghost",
+				variant = "default",
 				tooltip = noctalia.tr("close"),
 				onClick = function()
 					panel.close()
@@ -859,20 +924,50 @@ local function monitorSelect()
 	})
 end
 
+local function paletteTabs()
+	local order = { "builtin", "community", "custom" }
+	local children = {
+		ui.button({
+			glyph = "arrow-left",
+			variant = "default",
+			tooltip = noctalia.tr("back"),
+			onClick = function()
+				showPalette = false
+				render()
+			end,
+		}),
+		ui.label({ text = noctalia.tr("palette.title"), fontSize = 14, fontWeight = "bold", flexGrow = 1 }),
+	}
+	for _, source in ipairs(order) do
+		local count = 0
+		for _, group in ipairs(paletteGroups or {}) do
+			if group.source == source then
+				count = #group.items
+			end
+		end
+		if count > 0 then
+			table.insert(
+				children,
+				ui.button({
+					text = noctalia.tr("palette." .. source),
+					variant = paletteSource == source and "primary" or "outline",
+					onClick = function()
+						paletteSource = source
+						render()
+					end,
+				})
+			)
+		end
+	end
+	return ui.row({ gap = 8, align = "center" }, children)
+end
+
 local function sourceControls()
 	if showPalette then
-		return ui.row({ gap = 8, align = "center" }, {
-			ui.button({
-				glyph = "arrow-left",
-				variant = "ghost",
-				tooltip = noctalia.tr("back"),
-				onClick = function()
-					showPalette = false
-					render()
-				end,
-			}),
-			ui.label({ text = noctalia.tr("palette.title"), fontSize = 14, fontWeight = "bold", flexGrow = 1 }),
-		})
+		if not paletteGroups then
+			buildPaletteGroups()
+		end
+		return paletteTabs()
 	end
 
 	local children = {
@@ -893,7 +988,7 @@ local function sourceControls()
 			children,
 			ui.button({
 				glyph = "arrow-left",
-				variant = "ghost",
+				variant = "default",
 				enabled = browseDir ~= nil,
 				tooltip = noctalia.tr("browse.up"),
 				onClick = function()
@@ -910,7 +1005,7 @@ local function sourceControls()
 			ui.button({
 				glyph = sortMode == "name" and "sort-ascending"
 					or (sortMode == "name_desc" and "sort-descending" or "arrows-shuffle"),
-				variant = "ghost",
+				variant = "default",
 				tooltip = noctalia.tr("sort"),
 				onClick = function()
 					if sortMode == "name" then
@@ -929,7 +1024,7 @@ local function sourceControls()
 			children,
 			ui.button({
 				glyph = isScopePaused() and "player-play" or "player-pause",
-				variant = "ghost",
+				variant = "default",
 				enabled = hasVideo(),
 				tooltip = isScopePaused() and noctalia.tr("resume") or noctalia.tr("pause"),
 				onClick = pauseSelected,
@@ -939,7 +1034,7 @@ local function sourceControls()
 			children,
 			ui.button({
 				glyph = "player-stop",
-				variant = "ghost",
+				variant = "default",
 				enabled = hasVideo(),
 				tooltip = noctalia.tr("stop"),
 				onClick = stopSelected,
@@ -958,6 +1053,15 @@ local function emptyState(glyphName, message)
 	})
 end
 
+-- A fixed-height column wrapping a flexing scroll: this both clips the content
+-- to exactly VIEWPORT_ROWS rows and keeps the scroll gesture working (setting
+-- `height` directly on the scroll disables scrolling).
+local function viewport(children)
+	return ui.column({ height = viewportHeight(), align = "stretch" }, {
+		ui.scroll({ flexGrow = 1, gap = 12, align = "stretch" }, children),
+	})
+end
+
 local function content()
 	if showPalette then
 		if not paletteGroups then
@@ -965,21 +1069,14 @@ local function content()
 		end
 		local children = {}
 		for _, group in ipairs(paletteGroups or {}) do
-			table.insert(
-				children,
-				ui.label({
-					text = group.title,
-					fontSize = 12,
-					fontWeight = "semibold",
-					color = "on_surface_variant",
-				})
-			)
-			table.insert(children, grid(group.items, 2, paletteCard))
+			if group.source == paletteSource and #group.items > 0 then
+				table.insert(children, grid(group.items, 2, paletteCard))
+			end
 		end
 		if #children == 0 then
 			return emptyState("palette", noctalia.tr("palette.empty"))
 		end
-		return ui.scroll({ height = viewportHeight(), gap = 12, align = "stretch" }, children)
+		return viewport(children)
 	end
 
 	if tab == "video" then
@@ -987,7 +1084,7 @@ local function content()
 		if #items == 0 then
 			return emptyState("movie-off", query ~= "" and noctalia.tr("no_match") or noctalia.tr("video.empty"))
 		end
-		return ui.scroll({ height = viewportHeight(), align = "stretch" }, { grid(items, GRID_COLUMNS, videoTile) })
+		return viewport({ grid(items, GRID_COLUMNS, videoTile) })
 	end
 
 	if scanning and #imageEntries == 0 then
@@ -998,7 +1095,7 @@ local function content()
 	if #items == 0 then
 		return emptyState("photo", query ~= "" and noctalia.tr("no_match") or noctalia.tr("image.empty"))
 	end
-	return ui.scroll({ height = viewportHeight(), align = "stretch" }, { grid(items, GRID_COLUMNS, imageTile) })
+	return viewport({ grid(items, GRID_COLUMNS, imageTile) })
 end
 
 render = function()
