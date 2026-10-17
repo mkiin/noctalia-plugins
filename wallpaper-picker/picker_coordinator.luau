@@ -33,11 +33,11 @@ function PickerCoordinator:open()
 	self.favorites:load()
 	self.palettes:refreshCurrent()
 	self.browser:reset()
-	self.wallpapers:syncSelection()
+	self.onChange()
 end
 
 function PickerCoordinator:assignmentsChanged()
-	self.wallpapers:syncSelection()
+	self.onChange()
 end
 
 function PickerCoordinator:pausedChanged()
@@ -75,9 +75,8 @@ function PickerCoordinator:snapshot()
 		paletteSource = self.palettes:selectedSource(),
 		currentSource = currentSource,
 		currentScheme = currentScheme,
-		selectedKind = kind,
-		selectedPath = path,
-		isFavorite = self.wallpapers:isFavorite(),
+		hasWallpaper = kind ~= nil and path ~= nil,
+		isFavorite = kind ~= nil and path ~= nil and self.favorites:get(kind, path) ~= nil,
 		hasVideo = self.wallpapers:hasVideo(),
 		paused = self.wallpapers:isPaused(),
 		isDark = noctalia.isDarkMode(),
@@ -93,7 +92,6 @@ function PickerCoordinator:dispatch(action: string, value: string?, extra: strin
 		end
 	elseif action == "select-monitor" and value then
 		self.session:selectMonitor(tonumber(value) or 0)
-		self.wallpapers:syncSelection()
 	elseif action == "toggle-palette" then
 		self.session:togglePalette()
 		if self.session.showPalette then
