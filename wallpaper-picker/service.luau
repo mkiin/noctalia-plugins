@@ -178,9 +178,9 @@ local function killMpvpaper(connector: string, callback: ((CommandResult) -> ())
 			killCmd = "systemctl --user stop " .. shellQuote(unitName)
 		end
 	elseif isPaused[connector] then
-		killCmd = "pkill -CONT -f -- " .. pattern .. " ; pkill -" .. sig .. " -f -- " .. pattern
+		killCmd = "pkill -A -CONT -f -- " .. pattern .. " ; pkill -A -" .. sig .. " -f -- " .. pattern
 	else
-		killCmd = "pkill -" .. sig .. " -f -- " .. pattern
+		killCmd = "pkill -A -" .. sig .. " -f -- " .. pattern
 	end
 	if not launchedAsSystemd[connector] then
 		killCmd = killCmd
@@ -188,7 +188,7 @@ local function killMpvpaper(connector: string, callback: ((CommandResult) -> ())
 			.. pattern
 			.. " >/dev/null 2>&1; then timeout 2s pidwait -A -f -- "
 			.. pattern
-			.. " >/dev/null 2>&1 || { pkill -KILL -f -- "
+			.. " >/dev/null 2>&1 || { pkill -A -KILL -f -- "
 			.. pattern
 			.. " 2>/dev/null; timeout 1s pidwait -A -f -- "
 			.. pattern
@@ -246,7 +246,7 @@ local function freezeMpvpaper(connector)
 	if cfg("run_as_systemd") then
 		noctalia.runAsync("systemctl --user freeze " .. shellQuote(unitNameFor(connector)))
 	else
-		noctalia.runAsync("pkill -STOP -f -- " .. pkillPattern(connector))
+		noctalia.runAsync("pkill -A -STOP -f -- " .. pkillPattern(connector))
 	end
 end
 
@@ -255,7 +255,7 @@ local function thawMpvpaper(connector)
 	if cfg("run_as_systemd") then
 		noctalia.runAsync("systemctl --user thaw " .. shellQuote(unitNameFor(connector)))
 	else
-		noctalia.runAsync("pkill -CONT -f -- " .. pkillPattern(connector))
+		noctalia.runAsync("pkill -A -CONT -f -- " .. pkillPattern(connector))
 	end
 end
 
@@ -447,6 +447,8 @@ end
 function onIpc(event, payload)
 	if event == "clear-all" then
 		clearAll()
+	elseif event == "apply-image" then
+		applyImage(payload, "*")
 	elseif event == "clear" then
 		clearVideo(payload)
 	elseif event == "reapply" then
