@@ -5,7 +5,7 @@ local MediaBrowser = require("./media_browser.luau")
 type ImageEntry = MediaBrowser.ImageEntry
 type VideoEntry = MediaBrowser.VideoEntry
 
-local TILE_WIDTH = 246
+local TILE_WIDTH = 247
 local TILE_IMAGE_H = math.floor(TILE_WIDTH * 0.72)
 local TILE_INNER_GAP = 6
 local NAME_H = 22
