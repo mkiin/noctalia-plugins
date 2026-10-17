@@ -88,11 +88,26 @@ end
 function WallpaperController:applyImage(path: string)
 	local connector = self.session:connector()
 	self:expectSelection("images", path, connector)
-	noctalia.state.set("command", { action = "clear-all", nonce = self:nextNonce() })
+	local hadVideo = self:hasVideo()
+	local ticket = self:nextNonce()
 	if connector then
 		noctalia.setWallpaper(connector, path)
 	else
 		noctalia.setWallpaper(path)
+	end
+	if hadVideo then
+		if connector then
+			noctalia.setWallpaperEnabled(connector, true)
+		else
+			for _, output in ipairs(noctalia.outputs()) do
+				noctalia.setWallpaperEnabled(output.name, true)
+			end
+		end
+		noctalia.runAsync("sleep 0.3", function()
+			if self.nonce == ticket then
+				noctalia.state.set("command", { action = "clear-all", nonce = ticket })
+			end
+		end)
 	end
 	local favorite = self.favorites:get("images", path)
 	if favorite and favorite.source and favorite.scheme then

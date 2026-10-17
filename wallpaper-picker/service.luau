@@ -212,10 +212,15 @@ local function startMpvpaper(connector, path)
 			cmd = "systemd-run --user --scope " .. propsCmd .. "--unit=" .. shellQuote(unitName) .. " " .. cmd
 		end
 
-		forEachOutput(connector, function(name)
-			noctalia.setWallpaperEnabled(name, false)
-		end)
 		noctalia.runAsync("exec " .. cmd .. " >/dev/null 2>&1 &", function() end)
+		noctalia.runAsync("sleep 0.8", function()
+			if generation[connector] ~= ticket or assignments[connector] ~= path then
+				return
+			end
+			forEachOutput(connector, function(name)
+				noctalia.setWallpaperEnabled(name, false)
+			end)
+		end)
 	end)
 end
 
