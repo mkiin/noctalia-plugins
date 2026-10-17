@@ -19,8 +19,13 @@ local TILE_INNER_GAP = 6
 local NAME_H = 22
 local VIEWPORT_ROWS = 2
 local PALETTE_CARD_WIDTH = 460
-local PALETTE_CARD_HEIGHT = 380
 local PALETTE_ROW_H = 34
+local PALETTE_INSET = 8
+local PALETTE_ROW_GAP = PALETTE_INSET
+local PALETTE_LIST_ROWS = 5
+local PALETTE_LIST_H = PALETTE_INSET + PALETTE_LIST_ROWS * (PALETTE_ROW_H + PALETTE_ROW_GAP)
+local PALETTE_CARD_FRAME_H = 174
+local PALETTE_CARD_HEIGHT = PALETTE_CARD_FRAME_H + PALETTE_LIST_H
 
 local function tileHeight(): number
 	return TILE_IMAGE_H + TILE_INNER_GAP + NAME_H
@@ -252,7 +257,7 @@ function PickerPanel:palettePopup(): UiNode
 			ui.label({ text = noctalia.tr("palette.empty"), color = "on_surface_variant" }),
 		})
 	else
-		list = ui.scroll({ flexGrow = 1, gap = 4, align = "stretch" }, rows)
+		list = ui.scroll({ flexGrow = 1, gap = PALETTE_ROW_GAP, align = "stretch" }, rows)
 	end
 
 	local card = ui.column({
