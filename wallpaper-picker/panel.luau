@@ -45,7 +45,7 @@ local function paletteDots(colors: { string? }?, diameter: number): UiNode
 	return ui.row({ gap = 4, align = "center" }, dots)
 end
 
-local function grid<T>(items: { T }, columns: number, nodeFor: (T) -> UiNode): UiNode
+local function grid<T>(items: { T }, columns: number, nodeFor: (T) -> UiNode, rowHeight: number?): UiNode
 	local rows = {}
 	local row = {}
 	for index, item in ipairs(items) do
@@ -54,7 +54,7 @@ local function grid<T>(items: { T }, columns: number, nodeFor: (T) -> UiNode): U
 			for _ = #row + 1, columns do
 				table.insert(row, ui.spacer({ flexGrow = 1 }))
 			end
-			table.insert(rows, ui.row({ gap = GRID_GAP, align = "stretch" }, row))
+			table.insert(rows, ui.row({ gap = GRID_GAP, align = "stretch", height = rowHeight }, row))
 			row = {}
 		end
 	end
@@ -69,9 +69,7 @@ local function emptyState(glyph: string, message: string): UiNode
 end
 
 local function viewport(children: { UiNode }): UiNode
-	return ui.column({ height = viewportHeight(), align = "stretch" }, {
-		ui.scroll({ flexGrow = 1, gap = 12, align = "stretch" }, children),
-	})
+	return ui.scroll({ height = viewportHeight(), gap = 0, align = "stretch" }, children)
 end
 
 local PickerPanel = {}
@@ -416,7 +414,7 @@ function PickerPanel:content(): UiNode
 		end
 		return viewport({ grid(items, GRID_COLUMNS, function(item)
 			return self:videoTile(item)
-		end) })
+		end, tileHeight()) })
 	end
 	local items = self.view.images
 	if self.view.scanning and #items == 0 then
@@ -427,7 +425,7 @@ function PickerPanel:content(): UiNode
 	end
 	return viewport({ grid(items, GRID_COLUMNS, function(item)
 		return self:imageTile(item)
-	end) })
+	end, tileHeight()) })
 end
 
 function PickerPanel.render(self: any)
