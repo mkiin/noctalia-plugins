@@ -75,6 +75,8 @@ function PickerCoordinator:snapshot()
 		paletteSource = self.palettes:selectedSource(),
 		currentSource = currentSource,
 		currentScheme = currentScheme,
+		selectedKind = kind,
+		selectedPath = path,
 		hasWallpaper = kind ~= nil and path ~= nil,
 		isFavorite = kind ~= nil and path ~= nil and self.favorites:get(kind, path) ~= nil,
 		hasVideo = self.wallpapers:hasVideo(),
