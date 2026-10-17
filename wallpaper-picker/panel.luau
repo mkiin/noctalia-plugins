@@ -18,18 +18,13 @@ local TILE_IMAGE_H = math.floor(((CONTENT_WIDTH - GRID_GAP * (GRID_COLUMNS - 1))
 local TILE_INNER_GAP = 6
 local NAME_H = 22
 local VIEWPORT_ROWS = 2
-local VIEWPORT_EDGE = 4
 
 local function tileHeight(): number
 	return TILE_IMAGE_H + TILE_INNER_GAP + NAME_H
 end
 
-local function rowStride(): number
-	return tileHeight() + GRID_GAP
-end
-
 local function viewportHeight(): number
-	return tileHeight() * VIEWPORT_ROWS + GRID_GAP + VIEWPORT_EDGE * 2
+	return tileHeight() * VIEWPORT_ROWS + GRID_GAP
 end
 
 local function activeVariant(selected: boolean): "primary" | "outline"
@@ -50,7 +45,7 @@ local function paletteDots(colors: { string? }?, diameter: number): UiNode
 	return ui.row({ gap = 4, align = "center" }, dots)
 end
 
-local function grid<T>(items: { T }, columns: number, nodeFor: (T) -> UiNode, rowHeight: number?): UiNode
+local function grid<T>(items: { T }, columns: number, nodeFor: (T) -> UiNode): UiNode
 	local rows = {}
 	local row = {}
 	for index, item in ipairs(items) do
@@ -59,7 +54,7 @@ local function grid<T>(items: { T }, columns: number, nodeFor: (T) -> UiNode, ro
 			for _ = #row + 1, columns do
 				table.insert(row, ui.spacer({ flexGrow = 1 }))
 			end
-			table.insert(rows, ui.row({ gap = GRID_GAP, align = "stretch", height = rowHeight }, row))
+			table.insert(rows, ui.row({ gap = GRID_GAP, align = "stretch" }, row))
 			row = {}
 		end
 	end
@@ -83,44 +78,12 @@ local PickerPanel = {}
 PickerPanel.__index = PickerPanel
 
 function PickerPanel.new()
-	local self = setmetatable({ isOpen = false, view = nil :: any, scrollKey = "", scrollOffset = 0 }, PickerPanel)
+	local self = setmetatable({ isOpen = false, view = nil :: any }, PickerPanel)
 	local onChange = function()
 		self:render()
 	end
 	self.coordinator = PickerCoordinator.new(onChange)
 	return self
-end
-
-function PickerPanel:mediaViewport(items: { any }, nodeFor: (any) -> UiNode): UiNode
-	local key = table.concat({ self.view.tab, self.view.folder, self.view.query, self.view.sortMode }, ":")
-	if self.scrollKey ~= key then
-		self.scrollKey = key
-		self.scrollOffset = 0
-	end
-	local offset = self.scrollOffset
-	local inset = offset - math.floor(offset / rowStride()) * rowStride()
-	return ui.column({ height = viewportHeight(), align = "stretch" }, {
-		ui.scroll({
-			key = "media-scroll:" .. key,
-			flexGrow = 1,
-			gap = 0,
-			align = "stretch",
-			onScroll = function(nextOffset, maxOffset)
-				if self.scrollKey ~= key then
-					return
-				end
-				local value = math.max(0, math.min(tonumber(nextOffset) or 0, tonumber(maxOffset) or 0))
-				if math.abs(value - self.scrollOffset) > 0.1 then
-					self.scrollOffset = value
-					self:render()
-				end
-			end,
-		}, {
-			ui.spacer({ height = VIEWPORT_EDGE + inset }),
-			grid(items, GRID_COLUMNS, nodeFor, tileHeight()),
-			ui.spacer({ height = VIEWPORT_EDGE }),
-		}),
-	})
 end
 
 function PickerPanel:header(): UiNode
@@ -451,9 +414,9 @@ function PickerPanel:content(): UiNode
 		if #items == 0 then
 			return emptyState("movie-off", if query ~= "" then noctalia.tr("no_match") else noctalia.tr("video.empty"))
 		end
-		return self:mediaViewport(items, function(item)
+		return viewport({ grid(items, GRID_COLUMNS, function(item)
 			return self:videoTile(item)
-		end)
+		end) })
 	end
 	local items = self.view.images
 	if self.view.scanning and #items == 0 then
@@ -462,9 +425,9 @@ function PickerPanel:content(): UiNode
 	if #items == 0 then
 		return emptyState("photo", if query ~= "" then noctalia.tr("no_match") else noctalia.tr("image.empty"))
 	end
-	return self:mediaViewport(items, function(item)
+	return viewport({ grid(items, GRID_COLUMNS, function(item)
 		return self:imageTile(item)
-	end)
+	end) })
 end
 
 function PickerPanel.render(self: any)
