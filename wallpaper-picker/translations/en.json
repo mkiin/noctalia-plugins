@@ -1,0 +1,95 @@
+{
+  "all_outputs": "All Outputs",
+  "back": "Back",
+  "browse": {
+    "up": "Up one folder"
+  },
+  "close": "Close",
+  "favorite": {
+    "add": "Add to favorites",
+    "remove": "Remove from favorites"
+  },
+  "image": {
+    "empty": "No wallpapers found in the configured directory"
+  },
+  "loading": "Loading…",
+  "no_match": "No matches",
+  "palette": {
+    "builtin": "Built-in",
+    "community": "Community",
+    "custom": "Custom",
+    "empty": "No palettes found",
+    "title": "Palette"
+  },
+  "pause": "Pause",
+  "refresh": "Refresh",
+  "resume": "Resume",
+  "search": "Search wallpapers",
+  "settings": {
+    "allowed_cpus": {
+      "label": "Allowed CPUs"
+    },
+    "auto_pause": {
+      "description": "Pause playback while a window covers the wallpaper (experimental: may not work on all compositors)",
+      "label": "Pause When Covered",
+      "options": {
+        "full": "Fullscreen",
+        "max": "Maximized",
+        "off": "Off"
+      }
+    },
+    "cpu_quota": {
+      "label": "CPU Quota"
+    },
+    "cpu_weight": {
+      "label": "CPU Weight"
+    },
+    "glyph": {
+      "label": "Glyph"
+    },
+    "hardware_decode": {
+      "description": "Use GPU video decoding (mpv hwdec=auto)",
+      "label": "Hardware Decoding"
+    },
+    "image_directory": {
+      "description": "Folder scanned for wallpaper images; defaults to the Noctalia wallpaper directory when empty",
+      "label": "Image Directory"
+    },
+    "memory_max": {
+      "label": "Max Memory"
+    },
+    "mpv_options": {
+      "description": "Additional space-separated mpv options, e.g. panscan=1.0 video-zoom=0.1",
+      "label": "Extra mpv Options"
+    },
+    "mute": {
+      "label": "Mute Audio"
+    },
+    "nice": {
+      "label": "Nice Value"
+    },
+    "run_as_systemd": {
+      "description": "Run the wallpaper in a systemd transient scope to enforce strict resource limits",
+      "label": "Run as systemd Service"
+    },
+    "show_names": {
+      "description": "Show each tile's file name below its thumbnail",
+      "label": "Show File Names"
+    },
+    "video_directory": {
+      "description": "Folder scanned for wallpaper videos; defaults to ~/Videos when empty",
+      "label": "Video Directory"
+    }
+  },
+  "sort": "Change sort order",
+  "stop": "Stop",
+  "tab": {
+    "images": "Images",
+    "video": "Video"
+  },
+  "theme-mode": "Toggle light / dark",
+  "title": "Wallpaper Picker",
+  "video": {
+    "empty": "No videos found in the configured directory"
+  }
+}

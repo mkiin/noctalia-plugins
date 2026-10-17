@@ -1,0 +1,95 @@
+{
+  "all_outputs": "すべての出力",
+  "back": "戻る",
+  "browse": {
+    "up": "1つ上のフォルダへ"
+  },
+  "close": "閉じる",
+  "favorite": {
+    "add": "お気に入りに追加",
+    "remove": "お気に入りから削除"
+  },
+  "image": {
+    "empty": "設定されたフォルダに壁紙が見つかりません"
+  },
+  "loading": "読み込み中…",
+  "no_match": "一致なし",
+  "palette": {
+    "builtin": "組み込み",
+    "community": "コミュニティ",
+    "custom": "カスタム",
+    "empty": "パレットが見つかりません",
+    "title": "パレット"
+  },
+  "pause": "一時停止",
+  "refresh": "再読み込み",
+  "resume": "再開",
+  "search": "壁紙を検索",
+  "settings": {
+    "allowed_cpus": {
+      "label": "許可する CPU"
+    },
+    "auto_pause": {
+      "description": "ウィンドウが壁紙を覆っている間は再生を一時停止します（実験的: すべてのコンポジタで動作するとは限りません）",
+      "label": "覆われたときに一時停止",
+      "options": {
+        "full": "全画面",
+        "max": "最大化",
+        "off": "オフ"
+      }
+    },
+    "cpu_quota": {
+      "label": "CPU クォータ"
+    },
+    "cpu_weight": {
+      "label": "CPU ウェイト"
+    },
+    "glyph": {
+      "label": "グリフ"
+    },
+    "hardware_decode": {
+      "description": "GPU による動画デコードを使用する (mpv hwdec=auto)",
+      "label": "ハードウェアデコード"
+    },
+    "image_directory": {
+      "description": "壁紙画像を走査するフォルダ。空の場合は Noctalia の壁紙ディレクトリを使用します",
+      "label": "画像ディレクトリ"
+    },
+    "memory_max": {
+      "label": "最大メモリ"
+    },
+    "mpv_options": {
+      "description": "追加の mpv オプション（スペース区切り）。例: panscan=1.0 video-zoom=0.1",
+      "label": "追加 mpv オプション"
+    },
+    "mute": {
+      "label": "音声をミュート"
+    },
+    "nice": {
+      "label": "Nice 値"
+    },
+    "run_as_systemd": {
+      "description": "壁紙を systemd の一時スコープで実行し、厳密なリソース制限を適用します",
+      "label": "systemd サービスとして実行"
+    },
+    "show_names": {
+      "description": "各タイルのサムネイル下にファイル名を表示します",
+      "label": "ファイル名を表示"
+    },
+    "video_directory": {
+      "description": "壁紙動画を走査するフォルダ。空の場合は ~/Videos を使用します",
+      "label": "動画ディレクトリ"
+    }
+  },
+  "sort": "並び順を変更",
+  "stop": "停止",
+  "tab": {
+    "images": "画像",
+    "video": "動画"
+  },
+  "theme-mode": "ライト / ダークを切り替え",
+  "title": "壁紙ピッカー",
+  "video": {
+    "empty": "設定されたフォルダに動画が見つかりません"
+  }
+}

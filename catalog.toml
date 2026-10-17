@@ -1,0 +1,18 @@
+# Noctalia plugins catalog.
+# Index of every plugin this source ships: the minimum needed to render, search,
+# and compat-check the list. The per-plugin plugin.toml stays authoritative; the
+# host re-reads it on enable. Keep one [[plugin]] row per plugin subdirectory.
+# Regenerate with `update-catalog.py` (see the official / community repos).
+
+[[plugin]]
+id = "mkiin/wallpaper-picker"
+name = "Wallpaper Picker"
+version = "0.1.0"
+author = "mkiin"
+license = "MIT"
+icon = "photo"
+description = "Image and video wallpaper picker with V4-style UI and palette-synced favorites."
+deprecated = false
+plugin_api = 31
+tags = ["wallpaper", "video", "theme"]
+dependencies = ["mpv", "mpvpaper"]
