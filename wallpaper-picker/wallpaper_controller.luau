@@ -86,6 +86,7 @@ function WallpaperController:isPaused(): boolean
 end
 
 function WallpaperController:applyImage(path: string)
+	self.palettes:cancelPendingApply()
 	local connector = self.session:connector()
 	self:expectSelection("images", path, connector)
 	noctalia.state.set("command", { action = "clear-all", nonce = self:nextNonce() })
@@ -96,12 +97,15 @@ function WallpaperController:applyImage(path: string)
 	end
 	local favorite = self.favorites:get("images", path)
 	if favorite and favorite.source and favorite.scheme then
-		self.palettes:apply(favorite.source, favorite.scheme)
+		-- shortcut: no transition-complete event; use duration + margin until the host exposes one.
+		local delayMs = math.max(0, noctalia.getSetting("wallpaper.transition_duration") or 1500) + 200
+		self.palettes:apply(favorite.source, favorite.scheme, delayMs)
 	end
 	self.onChange()
 end
 
 function WallpaperController:applyVideo(path: string)
+	self.palettes:cancelPendingApply()
 	local connector = self.session:connector() or "*"
 	self:expectSelection("video", path, connector)
 	noctalia.state.set("command", { action = "set", connector = connector, path = path, nonce = self:nextNonce() })
@@ -133,6 +137,7 @@ function WallpaperController:pauseOrResume()
 end
 
 function WallpaperController:stop()
+	self.palettes:cancelPendingApply()
 	self.pendingPath = ""
 	local connector = self.session:connector()
 	if connector then

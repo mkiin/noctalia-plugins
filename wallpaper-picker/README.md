@@ -9,7 +9,11 @@ headless service with the same grid, favorites, and pause / resume / stop.
 The single star in the header favorites the wallpaper currently applied to the
 selected output. Favorites snapshot the active theme palette, show a distinct
 thumbnail border and four accent dots below the thumbnail. Applying a favorited
-wallpaper restores both the wallpaper and its saved palette.
+wallpaper restores both the wallpaper and its saved palette. Image favorites
+apply their palette after the configured transition duration plus 200 ms.
+Selecting another wallpaper, manually changing the palette or theme mode, or
+stopping video cancels the pending palette change. Already active palettes are
+not reapplied.
 
 ## Plugin
 

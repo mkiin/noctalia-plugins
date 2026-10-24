@@ -56,6 +56,7 @@ function PaletteManager.new(onChange: () -> ())
 		source = "builtin",
 		currentSource = nil :: string?,
 		currentScheme = nil :: string?,
+		applyRevision = 0,
 		onChange = onChange,
 	}, PaletteManager)
 end
@@ -86,17 +87,40 @@ function PaletteManager:refreshCurrent()
 	end)
 end
 
-function PaletteManager:apply(source: string?, name: string?)
+function PaletteManager:cancelPendingApply()
+	self.applyRevision = (self.applyRevision :: number) + 1
+end
+
+function PaletteManager:apply(source: string?, name: string?, delayMs: number?)
+	self:cancelPendingApply()
 	if not source or not name then
 		return
 	end
-	noctalia.runAsync("noctalia msg color-scheme-set " .. shellQuote(source) .. " " .. shellQuote(name))
-	self.currentSource = source
-	self.currentScheme = name
-	self.onChange()
+	local revision = self.applyRevision
+	local function apply()
+		if revision ~= self.applyRevision then
+			return
+		end
+		local setting = if source == "wallpaper"
+			then "wallpaper_scheme"
+			elseif source == "builtin" then "builtin"
+			else source .. "_palette"
+		if noctalia.getSetting("theme.source") ~= source or noctalia.getSetting("theme." .. setting) ~= name then
+			noctalia.runAsync("noctalia msg color-scheme-set " .. shellQuote(source) .. " " .. shellQuote(name))
+		end
+		self.currentSource = source
+		self.currentScheme = name
+		self.onChange()
+	end
+	if delayMs and delayMs > 0 then
+		noctalia.runAsync({ "sleep", tostring(delayMs / 1000) }, apply)
+	else
+		apply()
+	end
 end
 
 function PaletteManager:toggleMode()
+	self:cancelPendingApply()
 	noctalia.runAsync("noctalia msg theme-mode-toggle")
 	noctalia.runAsync("sleep 0.3", function()
 		self.groups = nil
