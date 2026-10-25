@@ -196,7 +196,7 @@ function MediaBrowser:visibleImages(): { ImageEntry }
 	local q = self.query:lower()
 	local out: { ImageEntry } = {}
 	for _, item in ipairs(self.imageEntries) do
-		if q == "" or item.name:lower():find(q, 1, true) then
+		if q == "" or item.name:lower():find(q, 1, true) ~= nil then
 			table.insert(out, item)
 		end
 	end
@@ -229,7 +229,7 @@ function MediaBrowser:visibleVideos(): { VideoEntry }
 	end
 	local out: { VideoEntry } = {}
 	for _, item in ipairs(self.videoEntries) do
-		if item.name:lower():find(q, 1, true) then
+		if item.name:lower():find(q, 1, true) ~= nil then
 			table.insert(out, item)
 		end
 	end
