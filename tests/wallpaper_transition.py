@@ -1,9 +1,8 @@
 """Run: nix shell nixpkgs#luau nixpkgs#python3 --command python3 tests/wallpaper_transition.py"""
 
-from pathlib import Path
 import subprocess
 import tempfile
-
+from pathlib import Path
 
 root = Path(__file__).resolve().parents[1] / "wallpaper-picker"
 script = """

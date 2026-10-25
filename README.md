@@ -24,3 +24,10 @@ Run `stylua --check wallpaper-picker/*.luau`,
 wallpaper transition test on pushes and pull requests. `.luaurc` enables every
 Luau lint as an error except `FunctionUnused`: Noctalia calls entry-point
 functions outside Luau's call graph, so that rule reports false positives.
+
+## Editor setup
+
+Zed loads `noctalia.d.luau` through `.zed/settings.json` when this repository is
+opened as the project root. Restart the Luau language server after opening an
+existing project. Other editors should add `noctalia.d.luau` to their
+`luau-lsp.types.definitionFiles` setting.
