@@ -8,6 +8,7 @@ root = Path(__file__).resolve().parents[1] / "wallpaper-picker"
 script = """
 local commands = {}
 local timers = {}
+local previews = {}
 local settings = { ["wallpaper.transition_duration"] = 800 }
 local wallpapers = {}
 local noctalia = {
@@ -22,7 +23,9 @@ local noctalia = {
     end,
     nowMs = function() return 0 end,
     state = { set = function() end },
-    setWallpaper = function(path) table.insert(wallpapers, path) end,
+    setWallpaper = function(first, second)
+        table.insert(wallpapers, if second then first .. "=" .. second else first)
+    end,
 }
 -- Palette listing is outside these scheduling tests.
 local require = function() return {} end
@@ -41,8 +44,15 @@ local favorites = {
         return { source = "community", scheme = path }
     end,
 }
+local thumbnails = {
+    request = function(_, path, kind, callback)
+        assert(kind == "video")
+        previews[path] = callback
+    end,
+}
+local selectedOutput = nil
 local controller = WallpaperController.new(
-    { connector = function() return nil end }, palettes, favorites, function() end
+    { connector = function() return selectedOutput end }, palettes, favorites, thumbnails, function() end
 )
 local function reset()
     table.clear(commands)
@@ -128,6 +138,34 @@ reset()
 palettes:apply("community", "retry")
 palettes:apply("community", "retry")
 assert(#commands == 2, "an unconfirmed application must remain retryable")
+
+table.clear(wallpapers)
+controller:applyVideo("video")
+previews.video("/persistent/video.jpg")
+assert(wallpapers[1] == "/persistent/video.jpg", "video preview must become the host wallpaper")
+
+table.clear(wallpapers)
+controller:applyVideo("old")
+controller:applyVideo("new")
+previews.old("/persistent/old.jpg")
+previews.new("/persistent/new.jpg")
+assert(#wallpapers == 1 and wallpapers[1] == "/persistent/new.jpg", "stale preview must not replace the selection")
+
+table.clear(wallpapers)
+controller:applyVideo("stopped")
+controller:stop()
+previews.stopped("/persistent/stopped.jpg")
+assert(#wallpapers == 0, "stopped video must not replace the host wallpaper")
+
+table.clear(wallpapers)
+selectedOutput = "DP-1"
+controller:applyVideo("left")
+selectedOutput = "HDMI-A-1"
+controller:applyVideo("right")
+previews.left("/persistent/left.jpg")
+previews.right("/persistent/right.jpg")
+assert(wallpapers[1] == "DP-1=/persistent/left.jpg")
+assert(wallpapers[2] == "HDMI-A-1=/persistent/right.jpg")
 print("wallpaper transition checks passed")
 """
 

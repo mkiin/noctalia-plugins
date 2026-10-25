@@ -3,11 +3,13 @@
 local WallpaperController = {}
 WallpaperController.__index = WallpaperController
 
-function WallpaperController.new(session: any, palettes: any, favorites: any, onChange: () -> ())
+function WallpaperController.new(session: any, palettes: any, favorites: any, thumbnails: any, onChange: () -> ())
 	return setmetatable({
 		session = session,
 		palettes = palettes,
 		favorites = favorites,
+		thumbnails = thumbnails,
+		previewFor = {} :: { [string]: number },
 		onChange = onChange,
 		nonce = 0,
 		pendingKind = "",
@@ -87,6 +89,7 @@ end
 
 function WallpaperController:applyImage(path: string)
 	self.palettes:cancelPendingApply()
+	self.previewFor = {}
 	local connector = self.session:connector()
 	self:expectSelection("images", path, connector)
 	noctalia.state.set("command", { action = "clear-all", nonce = self:nextNonce() })
@@ -107,8 +110,24 @@ end
 function WallpaperController:applyVideo(path: string)
 	self.palettes:cancelPendingApply()
 	local connector = self.session:connector() or "*"
+	local revision = self:nextNonce()
+	if connector == "*" then
+		self.previewFor = { ["*"] = revision }
+	else
+		self.previewFor["*"] = nil
+		self.previewFor[connector] = revision
+	end
 	self:expectSelection("video", path, connector)
-	noctalia.state.set("command", { action = "set", connector = connector, path = path, nonce = self:nextNonce() })
+	noctalia.state.set("command", { action = "set", connector = connector, path = path, nonce = revision })
+	self.thumbnails:request(path, "video", function(preview)
+		if preview and self.previewFor[connector] == revision then
+			if connector == "*" then
+				noctalia.setWallpaper(preview)
+			else
+				noctalia.setWallpaper(connector, preview)
+			end
+		end
+	end)
 	local favorite = self.favorites:get("video", path)
 	if favorite and favorite.source and favorite.scheme then
 		self.palettes:apply(favorite.source, favorite.scheme)
@@ -140,6 +159,11 @@ function WallpaperController:stop()
 	self.palettes:cancelPendingApply()
 	self.pendingPath = ""
 	local connector = self.session:connector()
+	if connector then
+		self.previewFor[connector] = nil
+	else
+		self.previewFor = {}
+	end
 	if connector then
 		noctalia.state.set("command", { action = "clear", connector = connector, nonce = self:nextNonce() })
 	else

@@ -411,7 +411,7 @@ end
 function PickerPanel:mediaTile(kind: string, path: string, name: string): UiNode
 	local selected = self.view.selectedKind == kind and self.view.selectedPath == path
 	local favorite = self.coordinator:favorite(kind, path)
-	local preview = self.coordinator:thumbnail(path)
+	local preview = self.coordinator:thumbnail(path, kind)
 	local border = if selected then "primary" else if favorite then "tertiary" else "outline"
 	local action = function()
 		self.coordinator:dispatch(if kind == "video" then "apply-video" else "apply-image", path)

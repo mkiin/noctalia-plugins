@@ -11,58 +11,95 @@ end
 
 function ThumbnailCache.new(onChange: () -> ())
 	local base = noctalia.getenv("XDG_CACHE_HOME") or ((noctalia.getenv("HOME") or "") .. "/.cache")
+	local dataDir = noctalia.pluginDataDir()
 	local self = setmetatable({
 		cacheDir = base .. "/noctalia/wallpaper-picker",
+		videoDir = if dataDir then dataDir .. "/video-thumbnails" else nil,
 		ready = {} :: { [string]: string },
 		pending = {} :: { [string]: boolean },
 		queued = {} :: { [string]: boolean },
 		failed = {} :: { [string]: boolean },
+		waiters = {} :: { [string]: { (string?) -> () } },
 		queue = {} :: { Job },
 		active = 0,
 		lastRender = 0,
 		onChange = onChange,
 	}, ThumbnailCache)
 	noctalia.mkdirAll(self.cacheDir)
+	if self.videoDir and not noctalia.mkdirAll(self.videoDir) then
+		self.videoDir = nil
+	end
 	return self
 end
 
-function ThumbnailCache:cachePath(path: string): string
+function ThumbnailCache:cachePath(path: string, kind: string): string
+	if kind == "video" then
+		local info = noctalia.fileInfo(path)
+		local identity = path .. ":" .. tostring(info and info.size) .. ":" .. tostring(info and info.mtime)
+		local hash = 5381
+		for index = 1, #identity do
+			hash = (hash * 33 + identity:byte(index)) % 4294967296
+		end
+		return (self.videoDir :: string) .. "/" .. string.format("%08x.jpg", hash)
+	end
 	return (self.cacheDir :: string) .. "/" .. path:gsub("[^%w]", "_") .. ".jpg"
 end
 
-function ThumbnailCache:get(path: string): string?
-	local ready = self.ready[path]
+function ThumbnailCache:get(path: string, kind: string): string?
+	if kind == "video" and not self.videoDir then
+		return nil
+	end
+	local cached = self:cachePath(path, kind)
+	local ready = self.ready[cached]
 	if ready then
 		return ready
 	end
-	local cached = self:cachePath(path)
 	if noctalia.fileExists(cached) then
-		self.ready[path] = cached
+		self.ready[cached] = cached
 		return cached
 	end
 	return nil
 end
 
-function ThumbnailCache:request(path: string, kind: string)
-	if self:get(path) or self.pending[path] or self.queued[path] or self.failed[path] then
+function ThumbnailCache:request(path: string, kind: string, onReady: ((string?) -> ())?)
+	local key = kind .. ":" .. path
+	local cached = self:get(path, kind)
+	if cached then
+		if onReady then
+			onReady(cached)
+		end
 		return
 	end
-	self.queued[path] = true
+	if self.failed[key] or (kind == "video" and not self.videoDir) then
+		if onReady then
+			onReady(nil)
+		end
+		return
+	end
+	if onReady then
+		self.waiters[key] = self.waiters[key] or {}
+		table.insert(self.waiters[key], onReady)
+	end
+	if self.pending[key] or self.queued[key] then
+		return
+	end
+	self.queued[key] = true
 	table.insert(self.queue, { path = path, kind = kind })
 	self:pump()
 end
 
 function ThumbnailCache:pump()
 	while self.active < 4 and #self.queue > 0 do
-		local job = table.remove(self.queue, 1)
+		local job: Job? = table.remove(self.queue, 1)
 		if not job then
 			break
 		end
 		local path = job.path
-		self.queued[path] = nil
-		self.pending[path] = true
+		local key = job.kind .. ":" .. path
+		self.queued[key] = nil
+		self.pending[key] = true
 		self.active += 1
-		local dest: string = self:cachePath(path)
+		local dest: string = self:cachePath(path, job.kind)
 		local command
 		if job.kind == "video" then
 			local temporary = dest .. ".d"
@@ -84,12 +121,16 @@ function ThumbnailCache:pump()
 		end
 		noctalia.runAsync(command, function()
 			self.active -= 1
-			self.pending[path] = nil
+			self.pending[key] = nil
 			if noctalia.fileExists(dest) then
-				self.ready[path] = dest
+				self.ready[dest] = dest
 			else
-				self.failed[path] = true
+				self.failed[key] = true
 			end
+			for _, callback in ipairs(self.waiters[key] or {}) do
+				callback(self.ready[dest])
+			end
+			self.waiters[key] = nil
 			self:pump()
 			local now = noctalia.nowMs()
 			if self.active == 0 and #self.queue == 0 or now - self.lastRender >= 150 then

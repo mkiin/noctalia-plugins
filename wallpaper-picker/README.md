@@ -45,6 +45,9 @@ original images are shown directly.
   resume / stop act on the selected output (or all outputs).
 - The palette button switches to a grid of built-in, community and custom
   color schemes; the theme button toggles light / dark.
+- Selecting a video also saves its generated still thumbnail as Noctalia's
+  wallpaper for the selected output(s), so the lock screen and Control Center
+  can display it while `mpvpaper` plays the video on the desktop.
 
 ## Settings
 
@@ -62,7 +65,9 @@ original images are shown directly.
 
 ## Notes
 
-- Stop restores the host wallpaper on that output; the host keeps its configured
-  image, so stopping a video reveals the previous image.
+- Stop reveals the video's saved still thumbnail on that output. Select an image
+  to replace it.
 - Favorites are stored in the plugin's data directory (`favorites.json`).
-- Thumbnails are cached under `$XDG_CACHE_HOME/noctalia/wallpaper-picker`.
+- Image thumbnails are cached under `$XDG_CACHE_HOME/noctalia/wallpaper-picker`.
+  Video thumbnails are kept in the plugin's data directory because Noctalia
+  uses them as persisted wallpapers.

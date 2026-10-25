@@ -16,7 +16,7 @@ function PickerCoordinator.new(onChange: () -> ())
 	local browser = MediaBrowser.new(thumbnails, onChange)
 	local favorites = FavoriteStore.new()
 	local palettes = PaletteManager.new(onChange)
-	local wallpapers = WallpaperController.new(session, palettes, favorites, onChange)
+	local wallpapers = WallpaperController.new(session, palettes, favorites, thumbnails, onChange)
 	return setmetatable({
 		session = session,
 		thumbnails = thumbnails,
@@ -44,8 +44,8 @@ function PickerCoordinator:pausedChanged()
 	self.onChange()
 end
 
-function PickerCoordinator:thumbnail(path: string): string?
-	return self.thumbnails:get(path)
+function PickerCoordinator:thumbnail(path: string, kind: string): string?
+	return self.thumbnails:get(path, kind)
 end
 
 function PickerCoordinator:favorite(kind: string, path: string): FavoriteStore.Favorite?
