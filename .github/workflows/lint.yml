@@ -1,0 +1,25 @@
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v31
+      - name: Check formatting
+        run: nix shell nixpkgs#stylua --command stylua --check wallpaper-picker/*.luau
+      - name: Lint and type check
+        run: nix shell nixpkgs#luau-lsp --command luau-lsp analyze --defs=noctalia.d.luau wallpaper-picker/*.luau
+      - name: Check plugin manifest and settings
+        run: nix shell nixpkgs#noctalia --command noctalia plugins lint
+      - name: Test wallpaper transitions
+        run: nix shell nixpkgs#luau nixpkgs#python3 --command python3 tests/wallpaper_transition.py
